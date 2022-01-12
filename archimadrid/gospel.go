@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 // gospelResponse is a struct that contains the response from the API
@@ -17,9 +20,10 @@ type gospelResponse struct {
 
 // Gospel contains the Gospel for a given day
 type Gospel struct {
-	Day      string
-	Title    string
-	Conteºnt string
+	Day       string
+	Title     string
+	Reference string
+	Content   string
 }
 
 func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
@@ -55,10 +59,37 @@ func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
 		return nil, fmt.Errorf("no gospel found for day %s", today)
 	}
 
-	return getGospelFromResponse(gospels[0]), nil
+	return getGospelFromResponse(gospels[0])
 }
 
-func getGospelFromResponse(response gospelResponse) *Gospel {
-	day := response.PostTitle
-
+func getGospelFromResponse(response gospelResponse) (*Gospel, error) {
+	text := strings.ReplaceAll(response.PostContent, "\n", "")
+	text = strings.ReplaceAll(text, "\t", "")
+	text = regexp.MustCompile(`EVANGELIO.*`).FindString(text)
+	text = strings.ReplaceAll(text, "EVANGELIO", "")
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(text))
+	if err != nil {
+		return nil, fmt.Errorf("error while creating the goquery document: %w", err)
+	}
+	title := doc.Find(".Tit_Lectura").First().Text()
+	reference := doc.Find(".Tit_Negro_Normal").First().Text()
+	gospelNodes := doc.Find("p")
+	content := ""
+	for i := 0; i < gospelNodes.Length(); i++ {
+		node := gospelNodes.Eq(i)
+		nodeContent := node.Text()
+		if nodeContent != "" {
+			if i == gospelNodes.Length()-1 {
+				content = fmt.Sprintf("%s\n\n%s", content, node.Text())
+			} else {
+				content = fmt.Sprintf("%s\n%s", content, node.Text())
+			}
+		}
+	}
+	return &Gospel{
+		Day:       response.PostTitle,
+		Title:     title,
+		Reference: reference,
+		Content:   content,
+	}, nil
 }

@@ -14,6 +14,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	fmt.Println(gospel.PostTitle)
-	fmt.Println(gospel.PostContent)
+	fmt.Println(gospel.Content)
 }
