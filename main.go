@@ -2,9 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
+
+	"github.com/igvaquero18/magnifibot/archimadrid"
 )
 
 func main() {
-	fmt.Println(time.Now().Format("2006-01-02"))
+	client := archimadrid.NewClient()
+	gospel, err := client.GetGospel(time.Now())
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	fmt.Println(gospel.PostTitle)
+	fmt.Println(gospel.PostContent)
 }

@@ -17,7 +17,8 @@ type Option func(c *Client) Option
 // NewClient returns a new instance of Client
 func NewClient(opts ...Option) *Client {
 	m := &Client{
-		url: DefaultURL,
+		url:    DefaultURL,
+		Logger: &utils.DefaultLogger{},
 	}
 	for _, opt := range opts {
 		opt(m)
