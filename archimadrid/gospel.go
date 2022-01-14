@@ -20,10 +20,10 @@ type gospelResponse struct {
 
 // Gospel contains the Gospel for a given day
 type Gospel struct {
-	Day       string
-	Title     string
-	Reference string
-	Content   string
+	Day       string `json:"day"`
+	Title     string `json:"title"`
+	Reference string `json:"reference"`
+	Content   string `json:"content"`
 }
 
 func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
@@ -79,11 +79,15 @@ func getGospelFromResponse(response gospelResponse) (*Gospel, error) {
 		node := gospelNodes.Eq(i)
 		nodeContent := node.Text()
 		if nodeContent != "" {
-			if i == gospelNodes.Length()-1 {
-				content = fmt.Sprintf("%s\n\n%s", content, node.Text())
-			} else {
-				content = fmt.Sprintf("%s\n%s", content, node.Text())
+			if content == "" {
+				content = nodeContent
+				continue
 			}
+			if i == gospelNodes.Length()-1 {
+				content = fmt.Sprintf("%s\n\n%s", content, nodeContent)
+				continue
+			}
+			content = fmt.Sprintf("%s\n%s", content, nodeContent)
 		}
 	}
 	return &Gospel{

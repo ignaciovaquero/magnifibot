@@ -14,5 +14,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	fmt.Println(gospel.Day)
+	fmt.Println(gospel.Title)
+	fmt.Println(gospel.Reference)
 	fmt.Println(gospel.Content)
 }
