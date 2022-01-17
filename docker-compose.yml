@@ -1,5 +1,11 @@
 version: "3.8"
 services:
+  magnifibot:
+    container_name: magnifibot
+    image: ivaquero/magnifibot:latest
+    networks:
+      - front-tier
+      - back-tier
   redis:
     container_name: redis
     image: redis:6.2.6-alpine3.15
@@ -16,7 +22,26 @@ services:
       - redisvolume:/data
     networks:
       - back-tier
+  dynamodb:
+    container_name: dynamodb
+    image: "amazon/dynamodb-local:1.18.0"
+    command:
+      - -jar
+      - DynamoDBLocal.jar
+      - -sharedDb
+      - -optimizeDbBeforeStartup
+      - -dbPath
+      - ./data
+    ports:
+      - 8000:8000
+    volumes:
+      - dynamodbvolume:/home/dynamodblocal/data
+    working_dir: /home/dynamodblocal
+    networks:
+      - back-tier
 volumes:
   redisvolume: {}
+  dynamodbvolume: {}
 networks:
+  front-tier: {}
   back-tier: {}
