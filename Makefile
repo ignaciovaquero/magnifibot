@@ -5,7 +5,7 @@ version = 0.1.0-SNAPSHOT
 local-redis:
 	COMPOSE_PROJECT_NAME=magnifibot docker-compose up -d
 
-dev: redis
+dev: local-redis
 	go mod tidy
 	go build -o bin/magnifibot
 	./bin/magnifibot

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-redis/cache/v8"
+	"golang.org/x/net/context"
 )
 
 // gospelResponse is a struct that contains the response from the API
@@ -26,9 +28,44 @@ type Gospel struct {
 	Content   string `json:"content"`
 }
 
+func (c *Client) getGospelFromCache(key string) (*Gospel, error) {
+	if c.Cache == nil {
+		return nil, fmt.Errorf("cache is not set")
+	}
+	c.Debugw("getting gospel from cache", "key", key)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO: Parameterize
+	defer cancel()
+	var gospel *Gospel
+	if err := c.Get(ctx, key, gospel); err != nil {
+		return nil, err
+	}
+	return gospel, nil
+}
+
+func (c *Client) saveGospelInCache(key string, gospel *Gospel) error {
+	if c.Cache == nil {
+		return fmt.Errorf("cache is not set")
+	}
+	c.Debugw("saving gospel in cache", "key", key)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO: Parameterize
+	defer cancel()
+	return c.Set(&cache.Item{
+		Key:   key,
+		Value: gospel,
+		Ctx:   ctx,
+		TTL:   24 * time.Hour, // TODO: Parameterize
+	})
+}
+
 func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
 	today := day.Format("2006-01-02")
-	c.Debugw("Getting gospel for day %s", today)
+	c.Debugw("Getting gospel", "day", today)
+
+	gospel, err := c.getGospelFromCache(today)
+	if err == nil {
+		return gospel, nil
+	}
+	c.Debugw("error getting the gospel from cache. falling back to making the request", "error", err.Error())
 
 	gospels := []gospelResponse{}
 
@@ -59,7 +96,11 @@ func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
 		return nil, fmt.Errorf("no gospel found for day %s", today)
 	}
 
-	return getGospelFromResponse(gospels[0])
+	g, err := getGospelFromResponse(gospels[0])
+	if err != nil {
+		return nil, fmt.Errorf("error getting the gospel from the response: %w", err)
+	}
+	return g, c.saveGospelInCache(today, gospel)
 }
 
 func getGospelFromResponse(response gospelResponse) (*Gospel, error) {

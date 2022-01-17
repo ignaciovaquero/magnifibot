@@ -1,11 +1,5 @@
 version: "3.8"
 services:
-  magnifibot:
-    container_name: magnifibot
-    image: ivaquero/magnifibot:latest
-    networks:
-      - front-tier
-      - back-tier
   redis:
     container_name: redis
     image: redis:6.2.6-alpine3.15
