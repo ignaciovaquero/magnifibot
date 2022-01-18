@@ -17,8 +17,3 @@ curl -XPOST 'https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?
 ### Required
 
 - Tests
-- Elasticache for storing the gospel. The key would be the actual day, the value would be the response we get from Archimadrid, before being parsed.
-
-### Optional
-
-- We could also monitor Redis Cache hits and misses with [OpenTelemetry](https://blog.uptrace.dev/posts/opentelemetry-metrics-cache-stats/).

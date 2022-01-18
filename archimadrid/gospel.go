@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-redis/cache/v8"
-	"golang.org/x/net/context"
 )
 
 // gospelResponse is a struct that contains the response from the API
@@ -29,32 +27,20 @@ type Gospel struct {
 }
 
 func (c *Client) getGospelFromCache(key string) (*Gospel, error) {
-	if c.Cache == nil {
-		return nil, fmt.Errorf("cache is not set")
-	}
 	c.Debugw("getting gospel from cache", "key", key)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO: Parameterize
-	defer cancel()
-	var gospel *Gospel
-	if err := c.Get(ctx, key, gospel); err != nil {
+	val, err := c.Get(key)
+	if err != nil {
 		return nil, err
 	}
-	return gospel, nil
+	if gospel, ok := val.(*Gospel); ok {
+		return gospel, nil
+	}
+	return nil, fmt.Errorf("no valid object of type *Gospel found")
 }
 
 func (c *Client) saveGospelInCache(key string, gospel *Gospel) error {
-	if c.Cache == nil {
-		return fmt.Errorf("cache is not set")
-	}
 	c.Debugw("saving gospel in cache", "key", key)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO: Parameterize
-	defer cancel()
-	return c.Set(&cache.Item{
-		Key:   key,
-		Value: gospel,
-		Ctx:   ctx,
-		TTL:   24 * time.Hour, // TODO: Parameterize
-	})
+	return c.Set(key, gospel)
 }
 
 func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
