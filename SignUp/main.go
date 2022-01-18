@@ -72,8 +72,6 @@ func init() {
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	headers := map[string]string{}
 
-	authParams := new(api.Auth)
-
 	if err := json.Unmarshal([]byte(request.Body), &authParams); err != nil {
 		return Response{
 			Body:       fmt.Sprintf("No valid username or password provided: %s", err.Error()),
