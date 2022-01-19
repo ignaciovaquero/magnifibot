@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/ReneKroon/ttlcache/v2"
-	"github.com/igvaquero18/magnifibot/utils"
 )
 
 const (
@@ -15,7 +14,6 @@ const (
 type Client struct {
 	url string
 	ttl time.Duration
-	utils.Logger
 	ttlcache.SimpleCache
 }
 
@@ -25,9 +23,8 @@ type Option func(c *Client) Option
 // NewClient returns a new instance of Client
 func NewClient(opts ...Option) *Client {
 	m := &Client{
-		url:    DefaultURL,
-		Logger: &utils.DefaultLogger{},
-		ttl:    DefaultTTL,
+		url: DefaultURL,
+		ttl: DefaultTTL,
 	}
 
 	for _, opt := range opts {
@@ -47,15 +44,6 @@ func SetURL(url string) Option {
 		prev := c.url
 		c.url = url
 		return SetURL(prev)
-	}
-}
-
-// SetLogger Sets the Logger for Client
-func SetLogger(logger utils.Logger) Option {
-	return func(c *Client) Option {
-		prev := c.Logger
-		c.Logger = logger
-		return SetLogger(prev)
 	}
 }
 

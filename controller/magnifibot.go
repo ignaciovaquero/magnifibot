@@ -5,7 +5,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/igvaquero18/magnifibot/utils"
 )
 
 // Option is a function to apply settings to Magnifibot struct
@@ -25,7 +24,7 @@ type DynamoDBInterface interface {
 
 // Magnifibot is the controller for the Magnifibot application.
 type Magnifibot struct {
-	utils.Logger
+	Logger
 	DynamoDBInterface
 	Config *MagnifibotConfig
 }
@@ -46,7 +45,7 @@ func NewMagnifibot(opts ...Option) *Magnifibot {
 }
 
 // SetLogger sets the Logger for the API
-func SetLogger(logger utils.Logger) Option {
+func SetLogger(logger Logger) Option {
 	return func(m *Magnifibot) Option {
 		prev := m.Logger
 		if logger != nil {

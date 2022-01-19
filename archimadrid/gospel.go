@@ -27,7 +27,6 @@ type Gospel struct {
 }
 
 func (c *Client) getGospelFromCache(key string) (*Gospel, error) {
-	c.Debugw("getting gospel from cache", "key", key)
 	val, err := c.Get(key)
 	if err != nil {
 		return nil, err
@@ -39,19 +38,16 @@ func (c *Client) getGospelFromCache(key string) (*Gospel, error) {
 }
 
 func (c *Client) saveGospelInCache(key string, gospel *Gospel) error {
-	c.Debugw("saving gospel in cache", "key", key)
 	return c.Set(key, gospel)
 }
 
 func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
 	today := day.Format("2006-01-02")
-	c.Debugw("Getting gospel", "day", today)
 
 	gospel, err := c.getGospelFromCache(today)
 	if err == nil {
 		return gospel, nil
 	}
-	c.Debugw("error getting the gospel from cache. falling back to making the request", "error", err.Error())
 
 	gospels := []gospelResponse{}
 

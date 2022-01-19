@@ -65,13 +65,13 @@ func init() {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
-	c = controller.NewMagnifibot()
+	c = controller.NewMagnifibot(controller.SetDynamoDBClient(dynamoClient), controller.SetLogger(sugar), controller.SetConfig(&controller.MagnifibotConfig{
+		UserTable: viper.GetString(dynamoDBUserTableFlag),
+	}))
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
-	headers := map[string]string{}
-
 	if err := json.Unmarshal([]byte(request.Body), &authParams); err != nil {
 		return Response{
 			Body:       fmt.Sprintf("No valid username or password provided: %s", err.Error()),
