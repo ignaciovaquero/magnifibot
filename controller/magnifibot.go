@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/igvaquero18/magnifibot/utils"
 )
 
@@ -42,4 +43,59 @@ func NewMagnifibot(opts ...Option) *Magnifibot {
 		opt(m)
 	}
 	return m
+}
+
+// SetLogger sets the Logger for the API
+func SetLogger(logger utils.Logger) Option {
+	return func(m *Magnifibot) Option {
+		prev := m.Logger
+		if logger != nil {
+			m.Logger = logger
+		}
+		return SetLogger(prev)
+	}
+}
+
+// SetDynamoDBClient sets the DynamoDB client for the API
+func SetDynamoDBClient(client DynamoDBInterface) Option {
+	return func(m *Magnifibot) Option {
+		prev := m.DynamoDBInterface
+		m.DynamoDBInterface = client
+		return SetDynamoDBClient(prev)
+	}
+}
+
+// SetConfig sets the DynamoDB config
+func SetConfig(c *MagnifibotConfig) Option {
+	return func(m *Magnifibot) Option {
+		prev := m.Config
+
+		if c.UserTable == "" {
+			c.UserTable = DefaultUserTable
+		}
+
+		m.Config = c
+		return SetConfig(prev)
+	}
+}
+
+func (m *Magnifibot) get(hashkey, object, table string) (map[string]types.AttributeValue, error) {
+	output, err := m.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
+		TableName: &table,
+	})
+
+	if err != nil {
+		return map[string]types.AttributeValue{}, err
+	}
+
+	return output.Item, nil
+}
+
+func (m *Magnifibot) delete(hashkey, object, table string) error {
+	_, err := m.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+		TableName: &table,
+		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
+	})
+	return err
 }
