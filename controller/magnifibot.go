@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -12,6 +13,8 @@ type Option func(m *Magnifibot) Option
 
 // MagnifibotInterface is the interface implemented by the SmartHome Controller
 type MagnifibotInterface interface {
+	Suscribe(userID, chatID, date int64, kind string) error
+	Unsuscribe(chatID int64) error
 }
 
 // DynamoDBInterface is an interface implemented by the dynamodb.Client that allow
@@ -24,7 +27,6 @@ type DynamoDBInterface interface {
 
 // Magnifibot is the controller for the Magnifibot application.
 type Magnifibot struct {
-	Logger
 	DynamoDBInterface
 	Config *MagnifibotConfig
 }
@@ -42,17 +44,6 @@ func NewMagnifibot(opts ...Option) *Magnifibot {
 		opt(m)
 	}
 	return m
-}
-
-// SetLogger sets the Logger for the API
-func SetLogger(logger Logger) Option {
-	return func(m *Magnifibot) Option {
-		prev := m.Logger
-		if logger != nil {
-			m.Logger = logger
-		}
-		return SetLogger(prev)
-	}
 }
 
 // SetDynamoDBClient sets the DynamoDB client for the API
@@ -81,7 +72,7 @@ func SetConfig(c *MagnifibotConfig) Option {
 func (m *Magnifibot) get(hashkey, object, table string) (map[string]types.AttributeValue, error) {
 	output, err := m.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
-		TableName: &table,
+		TableName: aws.String(table),
 	})
 
 	if err != nil {
@@ -93,7 +84,7 @@ func (m *Magnifibot) get(hashkey, object, table string) (map[string]types.Attrib
 
 func (m *Magnifibot) delete(hashkey, object, table string) error {
 	_, err := m.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
-		TableName: &table,
+		TableName: aws.String(table),
 		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
 	})
 	return err

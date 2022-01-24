@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/igvaquero18/magnifibot/api"
 	"github.com/igvaquero18/magnifibot/controller"
 	"github.com/igvaquero18/magnifibot/utils"
 	"github.com/spf13/viper"
@@ -65,34 +67,41 @@ func init() {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
-	c = controller.NewMagnifibot(controller.SetDynamoDBClient(dynamoClient), controller.SetLogger(sugar), controller.SetConfig(&controller.MagnifibotConfig{
+	c = controller.NewMagnifibot(controller.SetDynamoDBClient(dynamoClient), controller.SetConfig(&controller.MagnifibotConfig{
 		UserTable: viper.GetString(dynamoDBUserTableFlag),
 	}))
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
-	if err := json.Unmarshal([]byte(request.Body), &authParams); err != nil {
+	var update api.Update
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	if err := json.Unmarshal([]byte(request.Body), &update); err != nil {
 		return Response{
-			Body:       fmt.Sprintf("No valid username or password provided: %s", err.Error()),
+			Body:       fmt.Sprintf("Invalid Telegram message: %s", err.Error()),
 			StatusCode: http.StatusBadRequest,
 			Headers:    headers,
 		}, nil
 	}
 
-	if err := c.SetCredentials(authParams.Username, authParams.Password); err != nil {
-		return Response{
-			Body:       fmt.Sprintf("Error saving the credentials in the database: %s", err.Error()),
-			StatusCode: http.StatusInternalServerError,
-			Headers:    headers,
-		}, fmt.Errorf("Error saving the credentials in the database: %w", err)
+	if update.Message != nil {
+		re := regexp.MustCompile(`/(\w*)@?\w*`)
+		if !re.Match([]byte(update.Message.Text)) {
+			return Response{
+				Body:       "Invalid Telegram message: no command found",
+				StatusCode: http.StatusBadRequest,
+				Headers:    headers,
+			}, nil
+		}
+		submatch := re.FindStringSubmatch(update.Message.Text)
+		text := ""
+		if len(submatch) > 1 {
+			text = submatch[1]
+		}
 	}
-
-	return Response{
-		Body:       "Successfully signed up",
-		StatusCode: http.StatusOK,
-		Headers:    headers,
-	}, nil
 }
 
 func main() {
