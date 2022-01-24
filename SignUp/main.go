@@ -90,8 +90,18 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	if update.Message != nil {
 		re := regexp.MustCompile(`/(\w*)@?\w*`)
 		if !re.Match([]byte(update.Message.Text)) {
+			body, err := json.Marshal(map[string]interface{}{
+				"text": "Invalid command",
+			})
+			if err != nil {
+				return Response{
+					Body:       fmt.Sprintf("error when marshalling response: %s", err.Error()),
+					StatusCode: http.StatusInternalServerError,
+					Headers:    headers,
+				}, fmt.Errorf("error when marshalling response: %w", err)
+			}
 			return Response{
-				Body:       "Invalid Telegram message: no command found",
+				Body:       string(body),
 				StatusCode: http.StatusBadRequest,
 				Headers:    headers,
 			}, nil
