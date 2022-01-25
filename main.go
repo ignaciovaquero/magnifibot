@@ -35,7 +35,8 @@ func main() {
 		}
 
 		if u.ChannelPost != nil {
-			re := regexp.MustCompile(`/(\w*)@magnifibot_bot`) // TODO: Parameterize bot's name
+			name := "magnifibot_bot"
+			re := regexp.MustCompile(fmt.Sprintf(`/(\w*)@%s`, name))
 			if !re.Match([]byte(u.ChannelPost.Text)) {
 				return
 			}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -17,6 +18,7 @@ import (
 )
 
 const (
+	magnifibotNameEnv    = "MAGNIFIBOT_NAME"
 	awsRegionEnv         = "MAGNIFIBOT_AWS_REGION"
 	verboseEnv           = "MAGNIFIBOT_VERBOSE"
 	dynamoDBEndpointEnv  = "MAGNIFIBOT_DYNAMODB_ENDPOINT"
@@ -24,6 +26,7 @@ const (
 )
 
 const (
+	magnifibotNameFlag    = "name"
 	awsRegionFlag         = "aws.region"
 	verboseFlag           = "logging.verbose"
 	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
@@ -42,10 +45,12 @@ var (
 type Response events.APIGatewayProxyResponse
 
 func init() {
+	viper.SetDefault(magnifibotNameFlag, "magnifibot_bot")
 	viper.SetDefault(awsRegionFlag, "us-east-3")
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)
+	viper.BindEnv(magnifibotNameFlag, magnifibotNameEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
@@ -74,6 +79,7 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
+	sugar.Infow("received request", "request", request)
 	var update api.Update
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -88,30 +94,58 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	}
 
 	if update.Message != nil {
+		sugar.Infow("received message", "chat_id", update.Message.Chat.ID, "text", update.Message.Text)
 		re := regexp.MustCompile(`/(\w*)@?\w*`)
-		if !re.Match([]byte(update.Message.Text)) {
-			body, err := json.Marshal(map[string]interface{}{
-				"text": "Invalid command",
-			})
-			if err != nil {
-				return Response{
-					Body:       fmt.Sprintf("error when marshalling response: %s", err.Error()),
-					StatusCode: http.StatusInternalServerError,
-					Headers:    headers,
-				}, fmt.Errorf("error when marshalling response: %w", err)
-			}
-			return Response{
-				Body:       string(body),
-				StatusCode: http.StatusBadRequest,
-				Headers:    headers,
-			}, nil
-		}
 		submatch := re.FindStringSubmatch(update.Message.Text)
-		text := ""
-		if len(submatch) > 1 {
-			text = submatch[1]
+		if submatch != nil {
+			command := api.ToCommand(submatch[1])
+			if !command.IsValid() {
+				return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, fmt.Sprintf("Lo siento, solo acepto los siguientes comandos: %s", strings.Join(api.GetValidCommandsString(), ", ")))
+			}
+			if api.ValidCommands["suscribe"] == command {
+				sugar.Infow("suscribing user", "chat_id", update.Message.Chat.ID)
+				// TODO: Put the user in a SQS queue instead of calling the controller directly
+				if err := c.Suscribe(update.Message.Chat.ID, update.Message.From.ID, update.Message.Date, update.Message.Chat.Type); err != nil {
+					return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, fmt.Sprintf("Lo siento, no pude suscribirte: %s", err.Error()))
+				}
+				return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, "¡Hecho! Te enviaré el Evangelio cada día.")
+			}
+			sugar.Infow("unsuscribing user", "chat_id", update.Message.Chat.ID)
+			if err := c.Unsuscribe(update.Message.Chat.ID); err != nil {
+				return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, fmt.Sprintf("Lo siento, no pude darte de baja: %s", err.Error()))
+			}
+			return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, "¡Hecho! Ya no te enviaré más el Evangelio.")
 		}
 	}
+
+	if update.ChannelPost != nil {
+		sugar.Infow("received channel post", "chat_id", update.ChannelPost.Chat.ID, "text", update.ChannelPost.Text)
+		re := regexp.MustCompile(fmt.Sprintf(`/(\w*)@%s`, viper.GetString(magnifibotNameFlag)))
+	}
+	return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, "Lo siento, solo acepto comandos de Telegram.")
+}
+
+func createTelegramResponse(status int, headers map[string]string, chatID int64, text string) (Response, error) {
+	t := api.TelegramWebhookSendMessage{
+		ChatID: chatID,
+		Text:   text,
+		Method: "sendMessage",
+	}
+
+	body, err := json.Marshal(t)
+	if err != nil {
+		return Response{
+			Body:       fmt.Sprintf("error when marshalling response: %s", err.Error()),
+			StatusCode: http.StatusInternalServerError,
+			Headers:    headers,
+		}, fmt.Errorf("error when marshalling response: %w", err)
+	}
+
+	return Response{
+		Body:       string(body),
+		StatusCode: status,
+		Headers:    headers,
+	}, nil
 }
 
 func main() {
