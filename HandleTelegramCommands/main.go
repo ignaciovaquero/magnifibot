@@ -72,9 +72,12 @@ func init() {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
-	c = controller.NewMagnifibot(controller.SetDynamoDBClient(dynamoClient), controller.SetConfig(&controller.MagnifibotConfig{
-		UserTable: viper.GetString(dynamoDBUserTableFlag),
-	}))
+	c = controller.NewMagnifibot(
+		controller.SetDynamoDBClient(dynamoClient),
+		controller.SetConfig(&controller.MagnifibotConfig{
+			UserTable: viper.GetString(dynamoDBUserTableFlag),
+		}),
+	)
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
@@ -94,38 +97,147 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	}
 
 	if update.Message != nil {
-		sugar.Infow("received message", "chat_id", update.Message.Chat.ID, "text", update.Message.Text)
+		sugar.Infow(
+			"received message",
+			"chat_id",
+			update.Message.Chat.ID,
+			"text",
+			update.Message.Text,
+		)
 		re := regexp.MustCompile(`/(\w*)@?\w*`)
 		submatch := re.FindStringSubmatch(update.Message.Text)
 		if submatch != nil {
 			command := api.ToCommand(submatch[1])
 			if !command.IsValid() {
-				return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, fmt.Sprintf("Lo siento, solo acepto los siguientes comandos: %s", strings.Join(api.GetValidCommandsString(), ", ")))
+				return createTelegramResponse(
+					http.StatusOK,
+					headers,
+					update.Message.Chat.ID,
+					fmt.Sprintf(
+						"Lo siento, solo acepto los siguientes comandos: %s",
+						strings.Join(api.GetValidCommandsString(), ", "),
+					),
+				)
 			}
 			if api.ValidCommands["suscribe"] == command {
 				sugar.Infow("suscribing user", "chat_id", update.Message.Chat.ID)
 				// TODO: Put the user in a SQS queue instead of calling the controller directly
 				if err := c.Suscribe(update.Message.Chat.ID, update.Message.From.ID, update.Message.Date, update.Message.Chat.Type); err != nil {
-					return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, fmt.Sprintf("Lo siento, no pude suscribirte: %s", err.Error()))
+					return createTelegramResponse(
+						http.StatusOK,
+						headers,
+						update.Message.Chat.ID,
+						fmt.Sprintf("Lo siento, no pude suscribirte: %s", err.Error()),
+					)
 				}
-				return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, "¡Hecho! Te enviaré el Evangelio cada día.")
+				return createTelegramResponse(
+					http.StatusOK,
+					headers,
+					update.Message.Chat.ID,
+					"¡Hecho! Te enviaré el Evangelio cada día.",
+				)
 			}
 			sugar.Infow("unsuscribing user", "chat_id", update.Message.Chat.ID)
 			if err := c.Unsuscribe(update.Message.Chat.ID); err != nil {
-				return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, fmt.Sprintf("Lo siento, no pude darte de baja: %s", err.Error()))
+				return createTelegramResponse(
+					http.StatusOK,
+					headers,
+					update.Message.Chat.ID,
+					fmt.Sprintf("Lo siento, no pude darte de baja: %s", err.Error()),
+				)
 			}
-			return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, "¡Hecho! Ya no te enviaré más el Evangelio.")
+			return createTelegramResponse(
+				http.StatusOK,
+				headers,
+				update.Message.Chat.ID,
+				"¡Hecho! Ya no te enviaré más el Evangelio.",
+			)
 		}
+		return createTelegramResponse(
+			http.StatusOK,
+			headers,
+			update.Message.Chat.ID,
+			"Lo siento, solo acepto comandos de Telegram.",
+		)
 	}
 
 	if update.ChannelPost != nil {
-		sugar.Infow("received channel post", "chat_id", update.ChannelPost.Chat.ID, "text", update.ChannelPost.Text)
+		sugar.Infow(
+			"received channel post",
+			"chat_id",
+			update.ChannelPost.Chat.ID,
+			"text",
+			update.ChannelPost.Text,
+		)
 		re := regexp.MustCompile(fmt.Sprintf(`/(\w*)@%s`, viper.GetString(magnifibotNameFlag)))
+		submatch := re.FindStringSubmatch(update.ChannelPost.Text)
+		if submatch != nil {
+			command := api.ToCommand(submatch[1])
+			if !command.IsValid() {
+				return createTelegramResponse(
+					http.StatusOK,
+					headers,
+					update.ChannelPost.Chat.ID,
+					fmt.Sprintf(
+						"Lo siento, solo acepto los siguientes comandos: %s",
+						strings.Join(api.GetValidCommandsString(), ", "),
+					),
+				)
+			}
+			if api.ValidCommands["suscribe"] == command {
+				sugar.Infow("suscribing user", "chat_id", update.ChannelPost.Chat.ID)
+				// TODO: Put the chat in a SQS queue instead of calling the controller directly
+				if err := c.Suscribe(update.ChannelPost.Chat.ID, update.ChannelPost.SenderChat.ID, update.ChannelPost.Date, update.ChannelPost.SenderChat.Type); err != nil {
+					return createTelegramResponse(
+						http.StatusOK,
+						headers,
+						update.ChannelPost.Chat.ID,
+						fmt.Sprintf("Lo siento, no pude suscribirte: %s", err.Error()),
+					)
+				}
+				return createTelegramResponse(
+					http.StatusOK,
+					headers,
+					update.ChannelPost.Chat.ID,
+					"¡Hecho! Te enviaré el Evangelio cada día.",
+				)
+			}
+			sugar.Infow("unsuscribing user", "chat_id", update.ChannelPost.Chat.ID)
+			if err := c.Unsuscribe(update.ChannelPost.Chat.ID); err != nil {
+				return createTelegramResponse(
+					http.StatusOK,
+					headers,
+					update.ChannelPost.Chat.ID,
+					fmt.Sprintf("Lo siento, no pude darte de baja: %s", err.Error()),
+				)
+			}
+			return createTelegramResponse(
+				http.StatusOK,
+				headers,
+				update.ChannelPost.Chat.ID,
+				"¡Hecho! Ya no te enviaré más el Evangelio.",
+			)
+		}
+		return createTelegramResponse(
+			http.StatusOK,
+			headers,
+			update.ChannelPost.Chat.ID,
+			"Lo siento, solo acepto comandos de Telegram.",
+		)
 	}
-	return createTelegramResponse(http.StatusOK, headers, update.Message.Chat.ID, "Lo siento, solo acepto comandos de Telegram.")
+	return Response{
+		StatusCode: http.StatusBadRequest,
+		Headers:    headers,
+		Body:       "Invalid request",
+	}, nil
 }
 
-func createTelegramResponse(status int, headers map[string]string, chatID int64, text string) (Response, error) {
+func createTelegramResponse(
+	status int,
+	headers map[string]string,
+	chatID int64,
+	text string,
+) (Response, error) {
 	t := api.TelegramWebhookSendMessage{
 		ChatID: chatID,
 		Text:   text,

@@ -30,7 +30,14 @@ func main() {
 			if len(submatch) > 1 {
 				text = submatch[1]
 			}
-			fmt.Printf("Chat ID: %d\nUser ID: %d\nDate: %d\nText: %s\nType: %s\n\n", u.Message.Chat.ID, u.Message.From.ID, u.Message.Date, text, u.Message.Chat.Type)
+			fmt.Printf(
+				"Chat ID: %d\nUser ID: %d\nDate: %d\nText: %s\nType: %s\n\n",
+				u.Message.Chat.ID,
+				u.Message.From.ID,
+				u.Message.Date,
+				text,
+				u.Message.Chat.Type,
+			)
 			return
 		}
 
@@ -46,7 +53,14 @@ func main() {
 				text = submatch[1]
 			}
 			if re.Match([]byte(u.ChannelPost.Text)) {
-				fmt.Printf("Chat ID: %d\nUser ID: %d\nDate: %d\nText: %s\nType: %s\n\n", u.ChannelPost.Chat.ID, u.ChannelPost.SenderChat.ID, u.ChannelPost.Date, text, u.ChannelPost.Chat.Type)
+				fmt.Printf(
+					"Chat ID: %d\nUser ID: %d\nDate: %d\nText: %s\nType: %s\n\n",
+					u.ChannelPost.Chat.ID,
+					u.ChannelPost.SenderChat.ID,
+					u.ChannelPost.Date,
+					text,
+					u.ChannelPost.Chat.Type,
+				)
 			}
 			fmt.Printf("")
 		}
