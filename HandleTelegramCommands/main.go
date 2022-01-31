@@ -46,7 +46,7 @@ type Response events.APIGatewayProxyResponse
 
 func init() {
 	viper.SetDefault(magnifibotNameFlag, "magnifibot_bot")
-	viper.SetDefault(awsRegionFlag, "us-east-3")
+	viper.SetDefault(awsRegionFlag, "eu-west-3")
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)

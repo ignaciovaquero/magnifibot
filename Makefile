@@ -1,28 +1,14 @@
-.PHONY: local-redis dev build clean
+.PHONY: build clean dev deploy
 
-version = 0.1.0-SNAPSHOT
-
-local-redis:
-	COMPOSE_PROJECT_NAME=magnifibot docker-compose up -d
-
-dev: local-redis
-	go mod tidy
-	go build -o bin/magnifibot
-	./bin/magnifibot
-
-build:
-	docker build -t ivaquero/magnifibot:$(version)-amd64 --build-arg ARCH=amd64 . && \
-	docker push ivaquero/magnifibot:$(version)-amd64 && \
-	docker build -t ivaquero/magnifibot:$(version)-arm32v7 --build-arg ARCH=arm32v7 . && \
-	docker push ivaquero/magnifibot:$(version)-arm32v7 && \
-	docker build -t ivaquero/magnifibot:$(version)-arm64v8 --build-arg ARCH=arm64v8 . && \
-	docker push	ivaquero/magnifibot:$(version)-arm64v8 && \
-	docker manifest create \
-		ivaquero/magnifibot:$(version) \
-		ivaquero/magnifibot:$(version)-amd64 \
-		ivaquero/magnifibot:$(version)-arm32v7 \
-		ivaquero/magnifibot:$(version)-arm64v8 && \
-	docker manifest push ivaquero/magnifibot:$(version)
+build: gomodgen
+	export GO111MODULE=on
+	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/handletelegram HandleTelegramCommands/main.go
 
 clean:
-	rm -rf ./bin
+	rm -rf ./bin ./vendor go.sum
+
+dev:
+	go run main.go
+
+deploy: clean build
+	sls deploy --verbose
