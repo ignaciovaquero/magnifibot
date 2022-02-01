@@ -49,28 +49,15 @@ package:
 
 resources:
   Resources:
-    ControlPlane:
+    User:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ControlPlane
+        TableName: MagnifibotUser
         AttributeDefinitions:
-          - AttributeName: Room
-            AttributeType: S
+          - AttributeName: ChatID
+            AttributeType: "N"
         KeySchema:
-          - AttributeName: Room
-            KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
-    Authentication:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: Authentication
-        AttributeDefinitions:
-          - AttributeName: Username
-            AttributeType: S
-        KeySchema:
-          - AttributeName: Username
+          - AttributeName: ChatID
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
