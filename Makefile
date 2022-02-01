@@ -1,6 +1,7 @@
 .PHONY: build clean dev deploy
 
 AWS_REGION ?= eu-west-3
+AWS_PROFILE ?= serverless
 
 build:
 	export GO111MODULE=on
@@ -13,5 +14,4 @@ dev:
 	go run main.go
 
 deploy: clean build
-	sls deploy -r $(AWS_REGION) --verbose
-
+	sls deploy -r $(AWS_REGION) --aws-profile $(AWS_PROFILE) --verbose

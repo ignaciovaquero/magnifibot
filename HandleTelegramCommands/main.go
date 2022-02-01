@@ -82,7 +82,7 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
-	sugar.Infow("received request", "request", request)
+	sugar.Infow("received request", "request", request.Body)
 	var update api.Update
 	headers := map[string]string{
 		"Content-Type": "application/json",
