@@ -31,7 +31,7 @@ func (m *Magnifibot) Suscribe(chatID, userID, date int64, kind string) error {
 }
 
 func (m *Magnifibot) Unsuscribe(chatID int64) error {
-	if err := m.delete("ChatID", fmt.Sprintf("%d", chatID), m.Config.UserTable); err != nil {
+	if err := m.delete("ChatID", &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", chatID)}, m.Config.UserTable); err != nil {
 		return fmt.Errorf("error when deleting chat with id %d: %w", chatID, err)
 	}
 	return nil

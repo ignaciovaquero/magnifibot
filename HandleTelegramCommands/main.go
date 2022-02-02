@@ -56,8 +56,9 @@ func init() {
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBUserTableFlag, dynamoDBUserTableEnv)
 
-	sugar, err := utils.InitSugaredLogger(viper.GetBool(verboseFlag))
+	var err error
 
+	sugar, err = utils.InitSugaredLogger(viper.GetBool(verboseFlag))
 	if err != nil {
 		fmt.Printf("error when initializing logger: %s\n", err.Error())
 		os.Exit(1)
@@ -82,7 +83,7 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
-	sugar.Infow("received request", "request", request.Body)
+	sugar.Infow("received request", "method", request.HTTPMethod, "body", request.Body)
 	var update api.Update
 	headers := map[string]string{
 		"Content-Type": "application/json",

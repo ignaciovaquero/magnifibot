@@ -21,3 +21,4 @@ curl -XPOST 'https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?
 ### Optional
 
 - Get lectures on Sunday
+- Explore the possibility of making the bot private

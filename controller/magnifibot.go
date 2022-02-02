@@ -22,7 +22,11 @@ type MagnifibotInterface interface {
 type DynamoDBInterface interface {
 	GetItem(context.Context, *dynamodb.GetItemInput, ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	PutItem(context.Context, *dynamodb.PutItemInput, ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
-	DeleteItem(context.Context, *dynamodb.DeleteItemInput, ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+	DeleteItem(
+		context.Context,
+		*dynamodb.DeleteItemInput,
+		...func(*dynamodb.Options),
+	) (*dynamodb.DeleteItemOutput, error)
 }
 
 // Magnifibot is the controller for the Magnifibot application.
@@ -69,9 +73,14 @@ func SetConfig(c *MagnifibotConfig) Option {
 	}
 }
 
-func (m *Magnifibot) get(hashkey, object, table string) (map[string]types.AttributeValue, error) {
+func (m *Magnifibot) get(
+	hashkey string,
+	object types.AttributeValue,
+	table string,
+) (map[string]types.AttributeValue, error) {
+
 	output, err := m.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
+		Key:       map[string]types.AttributeValue{hashkey: object},
 		TableName: aws.String(table),
 	})
 
@@ -82,10 +91,10 @@ func (m *Magnifibot) get(hashkey, object, table string) (map[string]types.Attrib
 	return output.Item, nil
 }
 
-func (m *Magnifibot) delete(hashkey, object, table string) error {
+func (m *Magnifibot) delete(hashkey string, object types.AttributeValue, table string) error {
 	_, err := m.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
 		TableName: aws.String(table),
-		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
+		Key:       map[string]types.AttributeValue{hashkey: object},
 	})
 	return err
 }
