@@ -1,5 +1,7 @@
 package api
 
+import "fmt"
+
 type Command string
 
 var ValidCommands = map[string]Command{"suscribe": "suscribirme", "unsuscribe": "baja"}
@@ -16,7 +18,7 @@ func (c Command) IsValid() bool {
 func GetValidCommands() []Command {
 	commands := []Command{}
 	for _, cmd := range ValidCommands {
-		commands = append(commands, cmd)
+		commands = append(commands, Command(fmt.Sprintf("/%s", cmd)))
 	}
 	return commands
 }
@@ -24,7 +26,7 @@ func GetValidCommands() []Command {
 func GetValidCommandsString() []string {
 	commands := []string{}
 	for _, cmd := range ValidCommands {
-		commands = append(commands, string(cmd))
+		commands = append(commands, fmt.Sprintf("/%s", cmd))
 	}
 	return commands
 }

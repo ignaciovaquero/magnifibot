@@ -17,7 +17,23 @@ services:
     working_dir: /home/dynamodblocal
     networks:
       - back-tier
+  sqs:
+    container_name: sqs
+    image: localstack/localstack:0.13.3.3-arm64
+    ports:
+      - "127.0.0.1:4510-4559:4510-4559"
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4571:4571"
+    environment:
+      - SERVICES=sqs
+      - LAMBDA_DOCKER_NETWORK=magnifibot_back-tier
+    volumes:
+      - localstack_tmp:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - back-tier
 volumes:
   dynamodbvolume: {}
+  localstack_tmp: {}
 networks:
   back-tier: {}

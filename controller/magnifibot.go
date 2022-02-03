@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 // Option is a function to apply settings to Magnifibot struct
@@ -29,9 +30,22 @@ type DynamoDBInterface interface {
 	) (*dynamodb.DeleteItemOutput, error)
 }
 
+// SQSSendMessageAPI defines the interface for the GetQueueUrl and SendMessage functions.
+// We use this interface to test the functions using a mocked service.
+type SQSSendMessageAPI interface {
+	GetQueueUrl(ctx context.Context,
+		params *sqs.GetQueueUrlInput,
+		optFns ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
+
+	SendMessage(ctx context.Context,
+		params *sqs.SendMessageInput,
+		optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
+}
+
 // Magnifibot is the controller for the Magnifibot application.
 type Magnifibot struct {
 	DynamoDBInterface
+	SQSSendMessageAPI
 	Config *MagnifibotConfig
 }
 
@@ -56,6 +70,15 @@ func SetDynamoDBClient(client DynamoDBInterface) Option {
 		prev := m.DynamoDBInterface
 		m.DynamoDBInterface = client
 		return SetDynamoDBClient(prev)
+	}
+}
+
+// SetSQSClient sets the SQS client for the API
+func SetSQSClient(client SQSSendMessageAPI) Option {
+	return func(m *Magnifibot) Option {
+		prev := m.SQSSendMessageAPI
+		m.SQSSendMessageAPI = client
+		return SetSQSClient(prev)
 	}
 }
 
