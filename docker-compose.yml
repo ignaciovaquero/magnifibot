@@ -13,7 +13,7 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - dynamodbvolume:/home/dynamodblocal/data
+      - ./docker/dynamodb:/home/dynamodblocal/data
     working_dir: /home/dynamodblocal
     networks:
       - back-tier
@@ -33,7 +33,7 @@ services:
     networks:
       - back-tier
 volumes:
-  dynamodbvolume: {}
+  # dynamodbvolume: {}
   localstack_tmp: {}
 networks:
   back-tier: {}

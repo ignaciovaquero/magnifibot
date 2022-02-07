@@ -16,6 +16,7 @@ type Option func(m *Magnifibot) Option
 type MagnifibotInterface interface {
 	Suscribe(userID, chatID, date int64, kind string) error
 	Unsuscribe(chatID int64) error
+	GetChats() ([]int64, error)
 }
 
 // DynamoDBInterface is an interface implemented by the dynamodb.Client that allow
@@ -28,6 +29,7 @@ type DynamoDBInterface interface {
 		*dynamodb.DeleteItemInput,
 		...func(*dynamodb.Options),
 	) (*dynamodb.DeleteItemOutput, error)
+	dynamodb.ScanAPIClient
 }
 
 // SQSSendMessageAPI defines the interface for the GetQueueUrl and SendMessage functions.

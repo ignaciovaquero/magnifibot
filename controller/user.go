@@ -36,3 +36,7 @@ func (m *Magnifibot) Unsuscribe(chatID int64) error {
 	}
 	return nil
 }
+
+func (m *Magnifibot) GetChats() ([]int64, error) {
+	return []int64{}, nil
+}

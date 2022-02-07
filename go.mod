@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.13.0
 	github.com/aws/aws-sdk-go-v2/config v1.13.0
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.13.0
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.16.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
@@ -27,7 +28,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.7.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.5.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.7.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sqs v1.16.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.9.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.14.0 // indirect
 	github.com/aws/smithy-go v1.10.0 // indirect
