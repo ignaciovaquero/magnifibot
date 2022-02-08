@@ -35,10 +35,6 @@ type DynamoDBInterface interface {
 // SQSSendMessageAPI defines the interface for the GetQueueUrl and SendMessage functions.
 // We use this interface to test the functions using a mocked service.
 type SQSSendMessageAPI interface {
-	GetQueueUrl(ctx context.Context,
-		params *sqs.GetQueueUrlInput,
-		optFns ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
-
 	SendMessage(ctx context.Context,
 		params *sqs.SendMessageInput,
 		optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
@@ -57,8 +53,8 @@ type MagnifibotConfig struct {
 	// UserTable is the name of the User table in DynamoDB
 	UserTable string
 
-	// QueueName is the name of the SQS queue
-	QueueName string
+	// QueueURL is the URL of the SQS queue
+	QueueURL string
 }
 
 func NewMagnifibot(opts ...Option) *Magnifibot {
@@ -67,11 +63,6 @@ func NewMagnifibot(opts ...Option) *Magnifibot {
 			UserTable: DefaultUserTable,
 		},
 	}
-
-	m.GetQueueUrl(context.TODO(), &sqs.GetQueueUrlInput{
-		QueueName:              aws.String(DefaultQueueName),
-		QueueOwnerAWSAccountId: aws.String("000000000000"),
-	})
 
 	for _, opt := range opts {
 		opt(m)
@@ -104,10 +95,6 @@ func SetConfig(c *MagnifibotConfig) Option {
 
 		if c.UserTable == "" {
 			c.UserTable = DefaultUserTable
-		}
-
-		if c.QueueName == "" {
-			c.QueueName = DefaultQueueName
 		}
 
 		m.Config = c

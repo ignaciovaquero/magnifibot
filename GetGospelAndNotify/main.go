@@ -48,8 +48,8 @@ type Event events.CloudWatchEvent
 func init() {
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(awsRegionFlag, "eu-west-3")
-	viper.SetDefault(sqsEndpointEnv, "")
-	viper.SetDefault(sqsQueueNameEnv, controller.DefaultQueueName)
+	viper.SetDefault(sqsEndpointFlag, "")
+	viper.SetDefault(sqsQueueNameFlag, controller.DefaultQueueName)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)
 	viper.BindEnv(verboseFlag, verboseEnv)
@@ -71,10 +71,18 @@ func init() {
 	sqsEndpoint := viper.GetString(sqsEndpointFlag)
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
 
-	sugar.Infow("creating SQS client", "region", region, "url", sqsEndpointFlag)
+	sugar.Infow("creating SQS client", "region", region, "url", viper.GetString(sqsEndpointFlag))
 	sqsClient, err := utils.InitSQSClient(region, sqsEndpoint)
 	if err != nil {
 		sugar.Fatalw("error creating SQS client", "error", err.Error())
+	}
+
+	queueURL, err := sqsClient.GetQueueUrl(context.TODO(), &sqs.GetQueueUrlInput{
+		QueueName: aws.String(viper.GetString(sqsQueueNameFlag)),
+	})
+
+	if err != nil {
+		sugar.Fatalw("error getting the queue URL", "queue_name", viper.GetString(sqsQueueNameFlag), "error", err.Error())
 	}
 
 	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
@@ -86,7 +94,7 @@ func init() {
 	c = controller.NewMagnifibot(
 		controller.SetConfig(&controller.MagnifibotConfig{
 			UserTable: viper.GetString(dynamoDBUserTableFlag),
-			QueueURL:  viper.GetString(sqsEndpointFlag),
+			QueueURL:  *queueURL.QueueUrl,
 		}),
 		controller.SetSQSClient(sqsClient),
 		controller.SetDynamoDBClient(dynamoClient),
@@ -106,7 +114,7 @@ func Handler(ctx context.Context, event Event) (string, error) {
 	// TODO: Make concurrent
 	for _, item := range scanOutput.Items {
 		if chatID, ok := item["ChatID"]; ok {
-			sugar.Debugw("sending message to chat", "chat_id", chatID)
+			sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", chatID)
 			messageOutput, err := c.SendMessage(ctx, &sqs.SendMessageInput{
 				QueueUrl:    aws.String(c.Config.QueueURL),
 				MessageBody: aws.String(fmt.Sprintf("ChatID: %s", chatID)),
@@ -117,7 +125,7 @@ func Handler(ctx context.Context, event Event) (string, error) {
 			sugar.Debugw(
 				"message stored in SQS queue",
 				"queue_url",
-				viper.GetString(sqsQueueURLFlag),
+				viper.GetString(c.Config.QueueURL),
 				"message_id",
 				*messageOutput.MessageId,
 			)
