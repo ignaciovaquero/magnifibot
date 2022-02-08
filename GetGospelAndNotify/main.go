@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -19,8 +19,8 @@ import (
 const (
 	verboseEnv           = "MAGNIFIBOT_VERBOSE"
 	awsRegionEnv         = "MAGNIFIBOT_AWS_REGION"
-	sqsNameEnv           = "MAGNIFIBOT_SQS_QUEUE_NAME"
 	sqsEndpointEnv       = "MAGNIFIBOT_SQS_ENDPOINT"
+	sqsQueueNameEnv      = "MAGNIFIBOT_SQS_QUEUE_NAME"
 	dynamoDBEndpointEnv  = "MAGNIFIBOT_DYNAMODB_ENDPOINT"
 	dynamoDBUserTableEnv = "MAGNIFIBOT_DYNAMODB_USER_TABLE"
 )
@@ -28,8 +28,8 @@ const (
 const (
 	verboseFlag           = "logging.verbose"
 	awsRegionFlag         = "aws.region"
-	sqsNameFlag           = "aws.sqs.name"
 	sqsEndpointFlag       = "aws.sqs.endpoint"
+	sqsQueueNameFlag      = "aws.sqs.queue_name"
 	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
 	dynamoDBUserTableFlag = "aws.dynamodb.tables.user"
 )
@@ -48,14 +48,14 @@ type Event events.CloudWatchEvent
 func init() {
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(awsRegionFlag, "eu-west-3")
-	viper.SetDefault(sqsNameFlag, "magnifibot")
 	viper.SetDefault(sqsEndpointEnv, "")
+	viper.SetDefault(sqsQueueNameEnv, controller.DefaultQueueName)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
-	viper.BindEnv(sqsNameFlag, sqsNameEnv)
 	viper.BindEnv(sqsEndpointFlag, sqsEndpointEnv)
+	viper.BindEnv(sqsQueueNameFlag, sqsQueueNameEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBUserTableFlag, dynamoDBUserTableEnv)
 
@@ -84,6 +84,10 @@ func init() {
 	}
 
 	c = controller.NewMagnifibot(
+		controller.SetConfig(&controller.MagnifibotConfig{
+			UserTable: viper.GetString(dynamoDBUserTableFlag),
+			QueueURL:  viper.GetString(sqsEndpointFlag),
+		}),
 		controller.SetSQSClient(sqsClient),
 		controller.SetDynamoDBClient(dynamoClient),
 	)
@@ -93,6 +97,7 @@ func init() {
 func Handler(ctx context.Context, event Event) (string, error) {
 	sugar.Infow("received cloudwatch event", "time", event.Time)
 	scanOutput, err := c.Scan(ctx, &dynamodb.ScanInput{
+		TableName:            aws.String(c.Config.UserTable),
 		ProjectionExpression: aws.String("ChatID"),
 	})
 	if err != nil {
@@ -101,10 +106,21 @@ func Handler(ctx context.Context, event Event) (string, error) {
 	// TODO: Make concurrent
 	for _, item := range scanOutput.Items {
 		if chatID, ok := item["ChatID"]; ok {
-			sugar.Infow("sending message to chat", "chat_id", chatID)
-			c.SendMessage(ctx, &sqs.SendMessageInput{
+			sugar.Debugw("sending message to chat", "chat_id", chatID)
+			messageOutput, err := c.SendMessage(ctx, &sqs.SendMessageInput{
+				QueueUrl:    aws.String(c.Config.QueueURL),
 				MessageBody: aws.String(fmt.Sprintf("ChatID: %s", chatID)),
 			})
+			if err != nil {
+				return "", fmt.Errorf("error sending message to queue: %w", err)
+			}
+			sugar.Debugw(
+				"message stored in SQS queue",
+				"queue_url",
+				viper.GetString(sqsQueueURLFlag),
+				"message_id",
+				*messageOutput.MessageId,
+			)
 		} else {
 			sugar.Errorw("error getting ChatID", "item", item)
 		}
@@ -112,6 +128,14 @@ func Handler(ctx context.Context, event Event) (string, error) {
 	return "", nil
 }
 
+// func main() {
+// 	lambda.Start(Handler)
+// }
+
 func main() {
-	lambda.Start(Handler)
+	result, err := Handler(context.TODO(), Event{Time: time.Now()})
+	if err != nil {
+		sugar.Fatalw("error handling event", "error", err.Error())
+	}
+	fmt.Println(result)
 }

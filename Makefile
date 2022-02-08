@@ -25,12 +25,12 @@ localstack:
 	colima status 2>/dev/null || colima start
 	mkdir -p ./docker/dynamodb
 	docker-compose up -d && sleep 3
-	aws --endpoint-url=http://localhost:$(LOCALSTACK_PORT) sqs create-queue --queue-name magnifibot
+	aws --endpoint-url=http://localhost:$(LOCALSTACK_PORT) sqs create-queue --queue-name magnifibot 2>/dev/null || true
 	aws --endpoint-url=http://localhost:$(LOCAL_DYNAMODB_PORT) dynamodb create-table \
 		--table-name MagnifibotUser \
 		--attribute-definitions AttributeName=ChatID,AttributeType=N \
 		--key-schema AttributeName=ChatID,KeyType=HASH \
-		--provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+		--provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 2>/dev/null || true
 
 dev: localstack
 	go run main.go

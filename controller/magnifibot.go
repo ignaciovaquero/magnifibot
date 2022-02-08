@@ -56,10 +56,23 @@ type Magnifibot struct {
 type MagnifibotConfig struct {
 	// UserTable is the name of the User table in DynamoDB
 	UserTable string
+
+	// QueueName is the name of the SQS queue
+	QueueName string
 }
 
 func NewMagnifibot(opts ...Option) *Magnifibot {
-	m := &Magnifibot{}
+	m := &Magnifibot{
+		Config: &MagnifibotConfig{
+			UserTable: DefaultUserTable,
+		},
+	}
+
+	m.GetQueueUrl(context.TODO(), &sqs.GetQueueUrlInput{
+		QueueName:              aws.String(DefaultQueueName),
+		QueueOwnerAWSAccountId: aws.String("000000000000"),
+	})
+
 	for _, opt := range opts {
 		opt(m)
 	}
@@ -91,6 +104,10 @@ func SetConfig(c *MagnifibotConfig) Option {
 
 		if c.UserTable == "" {
 			c.UserTable = DefaultUserTable
+		}
+
+		if c.QueueName == "" {
+			c.QueueName = DefaultQueueName
 		}
 
 		m.Config = c
