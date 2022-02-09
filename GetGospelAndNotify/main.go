@@ -145,6 +145,8 @@ func Handler(ctx context.Context, event Event) (string, error) {
 					return
 				}
 				sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", id.Value)
+
+				// TODO: Create a helper method in the controller for sending messages to an SQS queue
 				messageOutput, err := c.SendMessage(ctx, &sqs.SendMessageInput{
 					QueueUrl:    aws.String(c.Config.QueueURL),
 					MessageBody: aws.String(gospel.Content),
