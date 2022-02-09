@@ -4,12 +4,18 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/igvaquero18/magnifibot/archimadrid"
 	"github.com/igvaquero18/magnifibot/controller"
 	"github.com/igvaquero18/magnifibot/utils"
 	"github.com/spf13/viper"
@@ -35,8 +41,9 @@ const (
 )
 
 var (
-	c     *controller.Magnifibot
-	sugar *zap.SugaredLogger
+	c      *controller.Magnifibot
+	sugar  *zap.SugaredLogger
+	gospel *archimadrid.Gospel
 )
 
 // Response is of type CloudWatchEvent since we're leveraging the
@@ -82,7 +89,13 @@ func init() {
 	})
 
 	if err != nil {
-		sugar.Fatalw("error getting the queue URL", "queue_name", viper.GetString(sqsQueueNameFlag), "error", err.Error())
+		sugar.Fatalw(
+			"error getting the queue URL",
+			"queue_name",
+			viper.GetString(sqsQueueNameFlag),
+			"error",
+			err.Error(),
+		)
 	}
 
 	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
@@ -99,6 +112,11 @@ func init() {
 		controller.SetSQSClient(sqsClient),
 		controller.SetDynamoDBClient(dynamoClient),
 	)
+
+	sugar.Infow("getting gospel for day", "day", time.Now().Format("2006-01-02"))
+	if gospel, err = archimadrid.NewClient().GetGospel(time.Now()); err != nil {
+		sugar.Fatalw("error getting gospel", "error", err.Error())
+	}
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
@@ -111,39 +129,75 @@ func Handler(ctx context.Context, event Event) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error scanning dynamodb table: %w", err)
 	}
-	// TODO: Make concurrent
+
+	wg := &sync.WaitGroup{}
+	errCh := make(chan error)
+	doneCh := make(chan struct{})
+	wg.Add(len(scanOutput.Items))
+
 	for _, item := range scanOutput.Items {
-		if chatID, ok := item["ChatID"]; ok {
-			sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", chatID)
-			messageOutput, err := c.SendMessage(ctx, &sqs.SendMessageInput{
-				QueueUrl:    aws.String(c.Config.QueueURL),
-				MessageBody: aws.String(fmt.Sprintf("ChatID: %s", chatID)),
-			})
-			if err != nil {
-				return "", fmt.Errorf("error sending message to queue: %w", err)
+		go func(e chan<- error, i map[string]dtypes.AttributeValue) {
+			if chatID, ok := i["ChatID"]; ok {
+				id, ok := chatID.(*dtypes.AttributeValueMemberN)
+				if !ok {
+					e <- fmt.Errorf("error converting ChatID into a string")
+					wg.Done()
+					return
+				}
+				sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", id.Value)
+				messageOutput, err := c.SendMessage(ctx, &sqs.SendMessageInput{
+					QueueUrl:    aws.String(c.Config.QueueURL),
+					MessageBody: aws.String(gospel.Content),
+					MessageAttributes: map[string]types.MessageAttributeValue{
+						"chatID":          {DataType: aws.String("Number"), StringValue: aws.String(id.Value)},
+						"gospelTitle":     {DataType: aws.String("String"), StringValue: aws.String(gospel.Title)},
+						"gospelDay":       {DataType: aws.String("String"), StringValue: aws.String(gospel.Day)},
+						"gospelReference": {DataType: aws.String("String"), StringValue: aws.String(gospel.Reference)},
+					},
+				})
+				if err != nil {
+					e <- fmt.Errorf("error sending message to queue: %w", err)
+					wg.Done()
+					return
+				}
+				sugar.Debugw(
+					"message stored in SQS queue",
+					"queue_url",
+					viper.GetString(c.Config.QueueURL),
+					"message_id",
+					*messageOutput.MessageId,
+				)
+			} else {
+				e <- fmt.Errorf("error getting ChatID for item %v", i)
 			}
-			sugar.Debugw(
-				"message stored in SQS queue",
-				"queue_url",
-				viper.GetString(c.Config.QueueURL),
-				"message_id",
-				*messageOutput.MessageId,
-			)
-		} else {
-			sugar.Errorw("error getting ChatID", "item", item)
+			wg.Done()
+		}(errCh, item)
+	}
+
+	go func(d chan<- struct{}) {
+		wg.Wait()
+		close(d)
+	}(doneCh)
+
+	done := false
+	errors := []string{}
+
+	for !done {
+		select {
+		case err := <-errCh:
+			errors = append(errors, err.Error())
+		case <-doneCh:
+			done = true
 		}
 	}
+
+	if len(errors) > 0 {
+		return "", fmt.Errorf("errors while sending messages to queue: %v", strings.Join(errors, "\n"))
+	}
+
 	return "", nil
 }
 
-// func main() {
-// 	lambda.Start(Handler)
-// }
-
 func main() {
-	result, err := Handler(context.TODO(), Event{Time: time.Now()})
-	if err != nil {
-		sugar.Fatalw("error handling event", "error", err.Error())
-	}
-	fmt.Println(result)
+	lambda.Start(Handler)
 }
