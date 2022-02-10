@@ -14,7 +14,7 @@ clean:
 	rm -rf ./bin ./vendor
 	aws --endpoint-url=http://localhost:$(LOCALSTACK_PORT) sqs delete-queue --queue-url=http://localhost:$(LOCALSTACK_PORT)/000000000000/magnifibot 2>/dev/null || true
 	aws --endpoint-url=http://localhost:$(LOCAL_DYNAMODB_PORT) dynamodb delete-table --table-name MagnifibotUser 2>/dev/null || true
-	docker-compose down
+	docker-compose down 2>/dev/null || true
 
 fullclean: clean
 	rm -rf ./docker

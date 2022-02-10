@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/igvaquero18/magnifibot/archimadrid"
 )
 
 // Option is a function to apply settings to Magnifibot struct
@@ -16,7 +17,8 @@ type Option func(m *Magnifibot) Option
 type MagnifibotInterface interface {
 	Suscribe(userID, chatID, date int64, kind string) error
 	Unsuscribe(chatID int64) error
-	GetChats() ([]int64, error)
+	GetChats() ([]int64, error) // TODO: implement
+	SendGospelToQueue(ctx context.Context, chatID string, gospel *archimadrid.Gospel) (string, error)
 }
 
 // DynamoDBInterface is an interface implemented by the dynamodb.Client that allow
@@ -100,24 +102,6 @@ func SetConfig(c *MagnifibotConfig) Option {
 		m.Config = c
 		return SetConfig(prev)
 	}
-}
-
-func (m *Magnifibot) get(
-	hashkey string,
-	object types.AttributeValue,
-	table string,
-) (map[string]types.AttributeValue, error) {
-
-	output, err := m.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		Key:       map[string]types.AttributeValue{hashkey: object},
-		TableName: aws.String(table),
-	})
-
-	if err != nil {
-		return map[string]types.AttributeValue{}, err
-	}
-
-	return output.Item, nil
 }
 
 func (m *Magnifibot) delete(hashkey string, object types.AttributeValue, table string) error {

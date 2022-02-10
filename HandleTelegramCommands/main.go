@@ -122,7 +122,6 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			}
 			if api.ValidCommands["suscribe"] == command {
 				sugar.Infow("suscribing user", "chat_id", update.Message.Chat.ID)
-				// TODO: Put the user in a SQS queue instead of calling the controller directly
 				if err := c.Suscribe(update.Message.Chat.ID, update.Message.From.ID, update.Message.Date, update.Message.Chat.Type); err != nil {
 					return createTelegramResponse(
 						http.StatusOK,
@@ -187,7 +186,6 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			}
 			if api.ValidCommands["suscribe"] == command {
 				sugar.Infow("suscribing user", "chat_id", update.ChannelPost.Chat.ID)
-				// TODO: Put the chat in a SQS queue instead of calling the controller directly
 				if err := c.Suscribe(update.ChannelPost.Chat.ID, update.ChannelPost.SenderChat.ID, update.ChannelPost.Date, update.ChannelPost.SenderChat.Type); err != nil {
 					return createTelegramResponse(
 						http.StatusOK,

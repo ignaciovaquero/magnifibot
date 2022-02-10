@@ -19,6 +19,7 @@ provider:
 
   environment:
     MAGNIFIBOT_VERBOSE: "true"
+    MAGNIFIBOT_SQS_QUEUE_NAME: magnifibot
 
   httpApi:
     name: magnifibot
@@ -28,11 +29,23 @@ provider:
       statements:
         - Effect: "Allow"
           Action:
-            - "dynamodb:*"
+            - "dynamodb:PutItem"
+            - "dynamodb:DeleteItem"
+            - "dynamodb:Scan"
           Resource:
             - Fn::Join:
                 - ""
                 - arn:aws:dynamodb:eu-west-3:106260645150:table/MagnifibotUser
+        - Effect: "Allow"
+          Action:
+            - "sqs:DeleteMessage"
+            - "sqs:GetQueueUrl"
+            - "sqs:ReceiveMessage"
+            - "sqs:SendMessage"
+          Resource:
+            - Fn::Join:
+                - ""
+                - arn:aws:sqs:eu-west-3:106260645150:magnifibot
 
 functions:
   handletelegram:
@@ -41,6 +54,14 @@ functions:
       - httpApi:
           method: POST
           path: /zSpJAEKr5ANLXVmM4nEZqUUefR9FjWKEu3HpmQ9umhZ6RpRvGwvw2oyGTv
+  getgospelandnotify:
+    handler: bin/getgospelandnotify
+    events:
+      - schedule:
+          name: get_gospel_and_notify
+          enabled: false
+          description: Get Gospel every day at 5am UTC
+          rate: cron(0 5 * * ? *) # every day at 5am UTC
 
 package:
   patterns:
@@ -62,6 +83,13 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+    Messages:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: magnifibot
+        MessageRetentionPeriod: 86400 # 1 day
+        ReceiveMessageWaitTimeSeconds: 0
+        VisibilityTimeout: 30 # seconds
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events

@@ -12,9 +12,8 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/igvaquero18/magnifibot/archimadrid"
 	"github.com/igvaquero18/magnifibot/controller"
 	"github.com/igvaquero18/magnifibot/utils"
@@ -122,6 +121,7 @@ func init() {
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(ctx context.Context, event Event) (string, error) {
 	sugar.Infow("received cloudwatch event", "time", event.Time)
+	// TODO: Abstract this in a helper method in the controller (GetChats method)
 	scanOutput, err := c.Scan(ctx, &dynamodb.ScanInput{
 		TableName:            aws.String(c.Config.UserTable),
 		ProjectionExpression: aws.String("ChatID"),
@@ -136,9 +136,9 @@ func Handler(ctx context.Context, event Event) (string, error) {
 	wg.Add(len(scanOutput.Items))
 
 	for _, item := range scanOutput.Items {
-		go func(e chan<- error, i map[string]dtypes.AttributeValue) {
+		go func(e chan<- error, i map[string]types.AttributeValue) {
 			if chatID, ok := i["ChatID"]; ok {
-				id, ok := chatID.(*dtypes.AttributeValueMemberN)
+				id, ok := chatID.(*types.AttributeValueMemberN)
 				if !ok {
 					e <- fmt.Errorf("error converting ChatID into a string")
 					wg.Done()
@@ -146,17 +146,8 @@ func Handler(ctx context.Context, event Event) (string, error) {
 				}
 				sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", id.Value)
 
-				// TODO: Create a helper method in the controller for sending messages to an SQS queue
-				messageOutput, err := c.SendMessage(ctx, &sqs.SendMessageInput{
-					QueueUrl:    aws.String(c.Config.QueueURL),
-					MessageBody: aws.String(gospel.Content),
-					MessageAttributes: map[string]types.MessageAttributeValue{
-						"chatID":          {DataType: aws.String("Number"), StringValue: aws.String(id.Value)},
-						"gospelTitle":     {DataType: aws.String("String"), StringValue: aws.String(gospel.Title)},
-						"gospelDay":       {DataType: aws.String("String"), StringValue: aws.String(gospel.Day)},
-						"gospelReference": {DataType: aws.String("String"), StringValue: aws.String(gospel.Reference)},
-					},
-				})
+				messageID, err := c.SendGospelToQueue(ctx, id.Value, gospel)
+
 				if err != nil {
 					e <- fmt.Errorf("error sending message to queue: %w", err)
 					wg.Done()
@@ -167,7 +158,7 @@ func Handler(ctx context.Context, event Event) (string, error) {
 					"queue_url",
 					viper.GetString(c.Config.QueueURL),
 					"message_id",
-					*messageOutput.MessageId,
+					messageID,
 				)
 			} else {
 				e <- fmt.Errorf("error getting ChatID for item %v", i)
