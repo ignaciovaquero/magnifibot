@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -192,5 +191,10 @@ func Handler(ctx context.Context, event Event) (string, error) {
 }
 
 func main() {
-	lambda.Start(Handler)
+	// lambda.Start(Handler)
+	result, err := Handler(context.TODO(), Event{Time: time.Now()})
+	if err != nil {
+		sugar.Fatalw("error executing lambda function", "error", err.Error())
+	}
+	fmt.Println(result)
 }
