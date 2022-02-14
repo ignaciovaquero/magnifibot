@@ -61,7 +61,19 @@ functions:
           name: get_gospel_and_notify
           enabled: false
           description: Get Gospel every day at 5am UTC
-          rate: cron(0 5 * * ? *) # every day at 5am UTC
+          # rate: cron(0 5 * * ? *) # every day at 5am UTC
+          rate: rate(2 minutes) # every day at 5am UTC
+  sendgospel:
+    handler: bin/sendgospel
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - Messages
+              - Arn
+          batchSize: 20
+          maximumBatchingWindow: 20
+          functionResponseType: ReportBatchItemFailures
 
 package:
   patterns:

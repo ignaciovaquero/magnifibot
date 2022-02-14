@@ -6,6 +6,8 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -112,36 +114,69 @@ func init() {
 func Handler(ctx context.Context, event Event) error {
 	sugar.Debug("received sqs event")
 
-	// TODO: make this concurrent
+	wg := sync.WaitGroup{}
+	errCh := make(chan error)
+	doneCh := make(chan struct{})
+	wg.Add(len(event.Records))
+
 	for _, record := range event.Records {
+		go func(r events.SQSMessage, e chan<- error) {
+			// TODO: make this a method in the controller
+			chatID, err := strconv.Atoi(*r.MessageAttributes["chatID"].StringValue)
+			if err != nil {
+				e <- fmt.Errorf("error converting chat ID from string to integer: %w", err)
+				wg.Done()
+				return
+			}
 
-		// TODO: make this a method in the controller
-		chatID, err := strconv.Atoi(*record.MessageAttributes["chatID"].StringValue)
-		if err != nil {
-			return fmt.Errorf("error converting chat ID from string to integer: %w", err)
+			re := regexp.MustCompile(`([_\*\[\]\(\)\~\>#\+\-\=\|\{\}\.!])`)
+			gospelDay := string(
+				re.ReplaceAll([]byte(*r.MessageAttributes["gospelDay"].StringValue), []byte(`\$1`)),
+			)
+			gospelReference := string(
+				re.ReplaceAll([]byte(*r.MessageAttributes["gospelReference"].StringValue), []byte(`\$1`)),
+			)
+			gospelTitle := string(
+				re.ReplaceAll([]byte(*r.MessageAttributes["gospelTitle"].StringValue), []byte(`\$1`)),
+			)
+			gospelBody := string(
+				re.ReplaceAll([]byte(r.Body), []byte(`\$1`)),
+			)
+
+			message, err := bot.SendMessage(&telego.SendMessageParams{
+				ChatID:    telego.ChatID{ID: int64(chatID)},
+				ParseMode: telegramParseMode,
+				Text:      fmt.Sprintf("%s\n\n*%s\n%s*\n\n%s", gospelDay, gospelReference, gospelTitle, gospelBody),
+			})
+			if err != nil {
+				e <- fmt.Errorf("error sending Telegram message: %w", err)
+				wg.Done()
+				return
+			}
+			sugar.Debugw("successfully sent Telegram message", "chat_id", chatID, "message_id", message.MessageID)
+			wg.Done()
+		}(record, errCh)
+	}
+
+	go func(d chan<- struct{}) {
+		wg.Wait()
+		close(d)
+	}(doneCh)
+
+	done := false
+	errors := []string{}
+
+	for !done {
+		select {
+		case err := <-errCh:
+			errors = append(errors, err.Error())
+		case <-doneCh:
+			done = true
 		}
+	}
 
-		re := regexp.MustCompile(`([_\*\[\]\(\)\~\>#\+\-\=\|\{\}\.!])`)
-		gospelDay := string(re.ReplaceAll([]byte(*record.MessageAttributes["gospelDay"].StringValue), []byte(`\$1`)))
-		gospelReference := string(
-			re.ReplaceAll([]byte(*record.MessageAttributes["gospelReference"].StringValue), []byte(`\$1`)),
-		)
-		gospelTitle := string(
-			re.ReplaceAll([]byte(*record.MessageAttributes["gospelTitle"].StringValue), []byte(`\$1`)),
-		)
-		gospelBody := string(
-			re.ReplaceAll([]byte(record.Body), []byte(`\$1`)),
-		)
-
-		message, err := bot.SendMessage(&telego.SendMessageParams{
-			ChatID:    telego.ChatID{ID: int64(chatID)},
-			ParseMode: telegramParseMode,
-			Text:      fmt.Sprintf("%s\n\n*%s\n%s*\n\n%s", gospelDay, gospelReference, gospelTitle, gospelBody),
-		})
-		if err != nil {
-			return fmt.Errorf("error sending Telegram message: %w", err)
-		}
-		sugar.Debugw("successfully sent Telegram message", "chat_id", chatID, "message_id", message.MessageID)
+	if len(errors) > 0 {
+		return fmt.Errorf("errors occurred while processing sqs events: %s", strings.Join(errors, "\n"))
 	}
 	return nil
 }
