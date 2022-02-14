@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -118,7 +119,7 @@ func init() {
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
-func Handler(ctx context.Context, event Event) (string, error) {
+func Handler(ctx context.Context, event Event) error {
 	sugar.Infow("received cloudwatch event", "time", event.Time)
 	// TODO: Abstract this in a helper method in the controller (GetChats method)
 	scanOutput, err := c.Scan(ctx, &dynamodb.ScanInput{
@@ -126,7 +127,7 @@ func Handler(ctx context.Context, event Event) (string, error) {
 		ProjectionExpression: aws.String("ChatID"),
 	})
 	if err != nil {
-		return "", fmt.Errorf("error scanning dynamodb table: %w", err)
+		return fmt.Errorf("error scanning dynamodb table: %w", err)
 	}
 
 	wg := &sync.WaitGroup{}
@@ -184,18 +185,12 @@ func Handler(ctx context.Context, event Event) (string, error) {
 	}
 
 	if len(errors) > 0 {
-		// TODO check if there are errors
-		return "", fmt.Errorf("errors while sending messages to queue: %v", strings.Join(errors, "\n"))
+		return fmt.Errorf("errors while sending messages to queue: %v", strings.Join(errors, "\n"))
 	}
 
-	return "", nil
+	return nil
 }
 
 func main() {
-	// lambda.Start(Handler)
-	result, err := Handler(context.TODO(), Event{Time: time.Now()})
-	if err != nil {
-		sugar.Fatalw("error executing lambda function", "error", err.Error())
-	}
-	fmt.Println(result)
+	lambda.Start(Handler)
 }
