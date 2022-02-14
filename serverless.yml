@@ -20,6 +20,7 @@ provider:
   environment:
     MAGNIFIBOT_VERBOSE: "true"
     MAGNIFIBOT_SQS_QUEUE_NAME: magnifibot
+    MAGNIFIBOT_TELEGRAM_BOT_TOKEN: ${ssm:MAGNIFIBOT_TELEGRAM_TOKEN}
 
   httpApi:
     name: magnifibot
@@ -59,10 +60,9 @@ functions:
     events:
       - schedule:
           name: get_gospel_and_notify
-          enabled: false
+          enabled: true
           description: Get Gospel every day at 5am UTC
-          # rate: cron(0 5 * * ? *) # every day at 5am UTC
-          rate: rate(2 minutes) # every day at 5am UTC
+          rate: cron(0 5 * * ? *) # every day at 5am UTC
   sendgospel:
     handler: bin/sendgospel
     events:
@@ -99,7 +99,7 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: magnifibot
-        MessageRetentionPeriod: 86400 # 1 day
+        MessageRetentionPeriod: 72000 # 20 hours
         ReceiveMessageWaitTimeSeconds: 0
         VisibilityTimeout: 30 # seconds
 

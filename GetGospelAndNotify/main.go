@@ -184,6 +184,7 @@ func Handler(ctx context.Context, event Event) (string, error) {
 	}
 
 	if len(errors) > 0 {
+		// TODO check if there are errors
 		return "", fmt.Errorf("errors while sending messages to queue: %v", strings.Join(errors, "\n"))
 	}
 
