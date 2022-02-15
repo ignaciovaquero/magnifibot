@@ -17,8 +17,11 @@ curl -XPOST 'https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?
 ### Required
 
 - Tests
+- Get lectures
+- Add on-demand feature
+- Add schedule hours feature
+- Add GitHub Actions
 
 ### Optional
 
-- Get lectures on Sunday
 - Explore the possibility of making the bot private

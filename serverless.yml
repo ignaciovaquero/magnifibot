@@ -57,6 +57,7 @@ functions:
           path: /zSpJAEKr5ANLXVmM4nEZqUUefR9FjWKEu3HpmQ9umhZ6RpRvGwvw2oyGTv
   getgospelandnotify:
     handler: bin/getgospelandnotify
+    timeout: 10
     events:
       - schedule:
           name: get_gospel_and_notify

@@ -1,0 +1,33 @@
+name: Deploy Magnifibot
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.6
+      - name: Test the project
+        run: |
+          go test ./...
+      - name: Build the project
+        run: |
+          rm -rf ./bin ./vendor
+          export GO111MODULE=on
+          env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/handletelegram HandleTelegramCommands/main.go
+          env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/getgospelandnotify GetGospelAndNotify/main.go
+          env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/sendgospel SendGospel/main.go
+      - name: Deploy the project
+        uses: serverless/github-action@master
+        with:
+          args: deploy -r eu-west-3 --verbose
+        env:
+          AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
