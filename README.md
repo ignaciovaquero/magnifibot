@@ -21,6 +21,8 @@ curl -XPOST 'https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?
 - Add on-demand feature
 - Add schedule hours feature
 - Add GitHub Actions
+  - Add stage environment step
+  - Add action for updating the Telegram Webhook
 
 ### Optional
 

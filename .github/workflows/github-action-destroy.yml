@@ -1,0 +1,15 @@
+name: Destroy Magnifibot
+on: [workflow_dispatch]
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Destroy the project
+        uses: serverless/github-action@master
+        with:
+          args: remove
+        env:
+          AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
