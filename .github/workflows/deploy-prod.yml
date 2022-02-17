@@ -25,7 +25,6 @@ jobs:
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/getgospelandnotify GetGospelAndNotify/main.go
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/sendgospel SendGospel/main.go
       - name: Deploy the project
-        id: deploy
         uses: serverless/github-action@v3
         with:
           args: deploy -r eu-west-3 --verbose
@@ -33,6 +32,7 @@ jobs:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
       - name: Get Lambda endpoint
+        id: deploy
         run: |
           echo "::set-output endpoint=$(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiEndpoint" --output text)$(aws apigatewayv2 get-routes --api-id $(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiId" --output text) --query "Items[0].RouteKey" --output text | cut -d" " -f2)"
         env:
