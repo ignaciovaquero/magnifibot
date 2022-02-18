@@ -1,13 +1,11 @@
 name: Deploy Magnifibot
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+  pull_request:
     paths:
       - '**.go'
       - serverless.yml
-      - .github/workflows/deploy-prod.yml
+      - .github/workflows/deploy-stage.yml
       - '!main.go'
       - go.*
 jobs:
@@ -30,10 +28,10 @@ jobs:
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/handletelegram HandleTelegramCommands/main.go
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/getgospelandnotify GetGospelAndNotify/main.go
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/sendgospel SendGospel/main.go
-      - name: Deploy the project
+      - name: Deploy the project in stage environment
         uses: serverless/github-action@v3
         with:
-          args: deploy -r eu-west-3 --verbose
+          args: deploy -r eu-west-3 -s stage --verbose
         env:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
@@ -49,7 +47,7 @@ jobs:
         id: telegramWebhook
         uses: fjogeleit/http-request-action@v1.9.0
         with:
-          url: https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/setWebhook
+          url: https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN_STAGE }}/setWebhook
           method: 'POST'
           contentType: application/json
           data: '{"url":"${{ steps.deploy.outputs.endpoint }}","allowed_updates":["message","channel_post"]}'
