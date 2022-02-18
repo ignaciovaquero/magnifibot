@@ -34,7 +34,7 @@ jobs:
       - name: Get Lambda endpoint
         id: deploy
         run: |
-          echo "::set-output endpoint=$(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiEndpoint" --output text)$(aws apigatewayv2 get-routes --api-id $(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiId" --output text) --query "Items[0].RouteKey" --output text | cut -d" " -f2)"
+          echo "::set-output name=endpoint::$(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiEndpoint" --output text)$(aws apigatewayv2 get-routes --api-id $(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiId" --output text) --query "Items[0].RouteKey" --output text | cut -d" " -f2)"
         env:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
