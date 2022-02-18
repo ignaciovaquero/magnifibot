@@ -1,13 +1,13 @@
 name: Deploy Magnifibot in stage
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '**.go'
-      - serverless.yml
-      - .github/workflows/deploy-stage.yml
-      - '!main.go'
-      - go.*
+  # pull_request:
+  #   paths:
+  #     - '**.go'
+  #     - serverless.yml
+  #     - .github/workflows/deploy-stage.yml
+  #     - '!main.go'
+  #     - go.*
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest

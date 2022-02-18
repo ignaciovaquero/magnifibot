@@ -1,0 +1,16 @@
+name: Destroy magnifibot in stage
+on:
+  workflow_dispatch:
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Destroy the project in stage environment
+        uses: serverless/github-action@v3
+        with:
+          args: remove -s stage --verbose
+        env:
+          AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
