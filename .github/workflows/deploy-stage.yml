@@ -1,4 +1,4 @@
-name: Deploy Magnifibot
+name: Deploy Magnifibot in stage
 on:
   workflow_dispatch:
   pull_request:
