@@ -39,17 +39,14 @@ jobs:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
           AWS_DEFAULT_REGION: eu-west-3
-      - name: Get output from previous step
+      - name: Set Telegram Webhook
+        id: telegramWebhook
+        uses: fjogeleit/http-request-action@v1.9.0
+        with:
+          url: https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/setWebhook
+          method: 'POST'
+          contentType: application/json
+          data: '{"url":"${{ steps.deploy.outputs.endpoint }}","allowed_updates":["message","channel_post"]}'
+      - name: Show response from Telegram API
         run: |
-          echo ${{ steps.deploy.outputs.endpoint }}
-      # - name: Set Telegram Webhook
-      #   id: telegramWebhook
-      #   uses: fjogeleit/http-request-action@v1.9.0
-      #   with:
-      #     url: https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/setWebhook
-      #     method: 'POST'
-      #     contentType: application/json
-      #     data: '{"url":"${{ steps.deploy.outputs.endpoint }}","allowed_updates":["message","channel_post"]}'
-      # - name: Show response from Telegram API
-      #   run: |
-      #     echo ${{ steps.telegramWebhook.outputs.response }}
+          echo ${{ steps.telegramWebhook.outputs.response }}
