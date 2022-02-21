@@ -4,7 +4,6 @@ AWS_REGION ?= eu-west-3
 AWS_PROFILE ?= serverless
 LOCALSTACK_PORT ?= 4566
 LOCAL_DYNAMODB_PORT ?= 8000
-SERVERLESS_STAGE ?= prod
 
 build:
 	export GO111MODULE=on
@@ -38,4 +37,4 @@ dev: localstack
 	go run main.go
 
 deploy: clean build
-	sls deploy -r $(AWS_REGION) --aws-profile $(AWS_PROFILE) -s $(SERVERLESS_STAGE) --verbose
+	sls deploy -r $(AWS_REGION) --aws-profile $(AWS_PROFILE) --verbose

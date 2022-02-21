@@ -7,10 +7,14 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
+      - name: Change the serverless configuration file so that it points to the stage environment
+        run: |
+          rm -f serverless.yml
+          mv serverless-stage.yml serverless.yml
       - name: Destroy the project in stage environment
         uses: serverless/github-action@v3
         with:
-          args: remove -c serverless-stage.yml --verbose
+          args: remove --verbose
         env:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
