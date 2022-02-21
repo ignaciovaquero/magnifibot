@@ -1,13 +1,13 @@
 name: Deploy Magnifibot in stage
 on:
   workflow_dispatch:
-  # pull_request:
-  #   paths:
-  #     - '**.go'
-  #     - serverless.yml
-  #     - .github/workflows/deploy-stage.yml
-  #     - '!main.go'
-  #     - go.*
+  pull_request:
+    paths:
+      - '**.go'
+      - serverless.yml
+      - .github/workflows/deploy-stage.yml
+      - '!main.go'
+      - go.*
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
       - name: Deploy the project in stage environment
         uses: serverless/github-action@v3
         with:
-          args: deploy -c serverless-stage.yml -r eu-west-3 --verbose
+          args: deploy --help
         env:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
