@@ -50,22 +50,22 @@ provider:
                 - arn:aws:sqs:eu-west-3:106260645150:magnifibot-stage
 
 functions:
-  handletelegram:
+  handletelegramstage:
     handler: bin/handletelegram
     events:
       - httpApi:
           method: POST
           path: /GAsh3tZnp32jiueiG7eHti9ktnAzgM7tUfQaaHfZcHwLEApxhiQU7BtHjs
-  getgospelandnotify:
+  getgospelandnotifystage:
     handler: bin/getgospelandnotify
     timeout: 5
     events:
       - schedule:
-          name: get_gospel_and_notify
+          name: get_gospel_and_notify_stage
           enabled: true
           description: Get Gospel every day at 5am UTC
           rate: cron(0 5 * * ? *) # every day at 5am UTC
-  sendgospel:
+  sendgospelstage:
     handler: bin/sendgospel
     events:
       - sqs:

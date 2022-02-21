@@ -20,6 +20,7 @@ curl -XPOST 'https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?
   - Add stage environment step
   - Add action for updating the Telegram Webhook
 - Get lectures
+- Backup DynamoDB table
 - Tests
 - Add on-demand feature
 - Setup usage CloudWatch alarms
