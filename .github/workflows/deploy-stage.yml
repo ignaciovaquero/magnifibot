@@ -1,13 +1,13 @@
 name: Deploy Magnifibot in stage
 on:
   workflow_dispatch:
-  # pull_request:
-  #   paths:
-  #     - '**.go'
-  #     - serverless.yml
-  #     - .github/workflows/deploy-stage.yml
-  #     - '!main.go'
-  #     - go.*
+  pull_request:
+    paths:
+      - '**.go'
+      - serverless.yml
+      - .github/workflows/deploy-stage.yml
+      - '!main.go'
+      - go.*
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -28,17 +28,19 @@ jobs:
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/handletelegram HandleTelegramCommands/main.go
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/getgospelandnotify GetGospelAndNotify/main.go
           env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/sendgospel SendGospel/main.go
+          rm -f serverless.yml
+          mv serverless-stage.yml serverless.yml
       - name: Deploy the project in stage environment
         uses: serverless/github-action@v3
         with:
-          args: deploy -r eu-west-3 -s stage --verbose
+          args: deploy -r eu-west-3 --verbose
         env:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
       - name: Get Lambda endpoint
         id: deploy
         run: |
-          echo "::set-output name=endpoint::$(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiEndpoint" --output text)$(aws apigatewayv2 get-routes --api-id $(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot'].ApiId" --output text) --query "Items[0].RouteKey" --output text | cut -d" " -f2)"
+          echo "::set-output name=endpoint::$(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot-stage'].ApiEndpoint" --output text)$(aws apigatewayv2 get-routes --api-id $(aws apigatewayv2 get-apis --query "Items[?Name=='magnifibot-stage'].ApiId" --output text) --query "Items[0].RouteKey" --output text | cut -d" " -f2)"
         env:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
