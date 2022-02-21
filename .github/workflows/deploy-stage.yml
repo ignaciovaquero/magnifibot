@@ -31,7 +31,7 @@ jobs:
       - name: Deploy the project in stage environment
         uses: serverless/github-action@v3
         with:
-          args: deploy -r eu-west-3 -s stage --verbose
+          args: deploy -c serverless-stage.yml -r eu-west-3 --verbose
         env:
           AWS_ACCESS_KEY_ID: AKIARRPNAYUPHK3U2KF4
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
