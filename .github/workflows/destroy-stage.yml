@@ -8,6 +8,7 @@ on:
       - '**.go'
       - serverless-stage.yml
       - .github/workflows/deploy-stage.yml
+      - .github/workflows/destroy-stage.yml
       - '!main.go'
       - go.*
 jobs:
