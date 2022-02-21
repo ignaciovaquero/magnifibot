@@ -1,8 +1,17 @@
 name: Destroy magnifibot in stage
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.go'
+      - serverless-stage.yml
+      - .github/workflows/deploy-stage.yml
+      - '!main.go'
+      - go.*
 jobs:
-  build-and-deploy:
+  destroy-stage:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -11,6 +20,17 @@ jobs:
         run: |
           rm -f serverless.yml
           mv serverless-stage.yml serverless.yml
+      - name: Delete webhook in stage
+        id: telegramWebhook
+        uses: fjogeleit/http-request-action@v1.9.0
+        with:
+          url: https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN_STAGE }}/setWebhook
+          method: 'POST'
+          contentType: application/json
+          data: '{"url":"","allowed_updates":["message","channel_post"]}'
+      - name: Show response from Telegram API
+        run: |
+          echo ${{ steps.telegramWebhook.outputs.response }}
       - name: Destroy the project in stage environment
         uses: serverless/github-action@v3
         with:

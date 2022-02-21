@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '**.go'
-      - serverless.yml
+      - serverless-stage.yml
       - .github/workflows/deploy-stage.yml
       - '!main.go'
       - go.*
