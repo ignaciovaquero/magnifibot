@@ -5,9 +5,10 @@ on:
       - '**.go'
       - '!main.go'
       - go.*
+    branches-ignore:
+      - main
 jobs:
   test:
-    if: github.ref_name != "main"
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
