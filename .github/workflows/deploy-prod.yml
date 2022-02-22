@@ -1,15 +1,9 @@
 name: Deploy Magnifibot in production
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - '**.go'
-      - serverless.yml
-      - .github/workflows/deploy-prod.yml
-      - '!main.go'
-      - go.*
+  release:
+    types:
+      - released
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
