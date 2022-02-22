@@ -1,4 +1,4 @@
-name: Deploy Magnifibot in production
+name: Bump tag and version
 on:
   workflow_dispatch:
   push:
