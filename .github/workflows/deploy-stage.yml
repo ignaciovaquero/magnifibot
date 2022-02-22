@@ -8,6 +8,9 @@ on:
       - .github/workflows/deploy-stage.yml
       - '!main.go'
       - go.*
+    types:
+      - opened
+      - reopened
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -18,9 +21,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.17.6
-      - name: Test the project
-        run: |
-          go test ./...
       - name: Build the project
         run: |
           rm -rf ./bin ./vendor
