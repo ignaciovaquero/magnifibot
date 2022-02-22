@@ -13,6 +13,8 @@ on:
 jobs:
   tag:
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -31,4 +33,4 @@ jobs:
     needs: tag
     uses: ./.github/workflows/deploy-prod.yml
     with:
-      github_tag: ${{ steps.tag_version.outputs.new_tag }}
+      github_tag: ${{ needs.tag.outputs.new_tag }}
