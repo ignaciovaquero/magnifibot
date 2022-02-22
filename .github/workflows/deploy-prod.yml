@@ -1,15 +1,19 @@
 name: Deploy Magnifibot in production
 on:
   workflow_dispatch:
-  release:
-    types:
-      - published
+  workflow_call:
+    inputs:
+      github_tag:
+        required: true
+        type: string
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.github_tag }}
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
