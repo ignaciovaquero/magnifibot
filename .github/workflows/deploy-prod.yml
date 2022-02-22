@@ -1,4 +1,4 @@
-name: Deploy Magnifibot in production
+name: Deploy Magnifibot in production environment
 on:
   workflow_dispatch:
   workflow_call:
