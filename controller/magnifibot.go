@@ -15,9 +15,9 @@ type Option func(m *Magnifibot) Option
 
 // MagnifibotInterface is the interface implemented by the SmartHome Controller
 type MagnifibotInterface interface {
-	Suscribe(userID, chatID, date int64, kind string) error
-	Unsuscribe(chatID int64) error
-	GetChats() ([]int64, error) // TODO: implement
+	Suscribe(ctx context.Context, chatID, date int64, kind string) error
+	Unsuscribe(ctx context.Context, chatID int64) error
+	GetChats(ctx context.Context) ([]int64, error) // TODO: implement
 	SendGospelToQueue(ctx context.Context, chatID string, gospel *archimadrid.Gospel) (string, error)
 }
 
@@ -104,8 +104,8 @@ func SetConfig(c *MagnifibotConfig) Option {
 	}
 }
 
-func (m *Magnifibot) delete(hashkey string, object types.AttributeValue, table string) error {
-	_, err := m.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+func (m *Magnifibot) delete(ctx context.Context, hashkey string, object types.AttributeValue, table string) error {
+	_, err := m.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(table),
 		Key:       map[string]types.AttributeValue{hashkey: object},
 	})

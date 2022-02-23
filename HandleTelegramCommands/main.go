@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -15,6 +16,7 @@ import (
 	"github.com/igvaquero18/magnifibot/utils"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -83,6 +85,7 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
+	ctx := context.WithTimeout(context.Background(), 10*time.Second)
 	sugar.Infow("received request", "method", request.HTTPMethod, "body", request.Body)
 	var update api.Update
 	headers := map[string]string{
