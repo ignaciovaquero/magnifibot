@@ -34,3 +34,6 @@ jobs:
     uses: ./.github/workflows/deploy-prod.yml
     with:
       github_tag: ${{ needs.tag.outputs.new_tag }}
+    secrets:
+      AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}

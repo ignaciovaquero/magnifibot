@@ -6,6 +6,11 @@ on:
       github_tag:
         required: true
         type: string
+    secrets:
+      AWS_SECRET_KEY:
+        required: true
+      TELEGRAM_TOKEN:
+        required: true
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
