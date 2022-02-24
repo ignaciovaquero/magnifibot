@@ -7,7 +7,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -16,7 +15,6 @@ import (
 	"github.com/igvaquero18/magnifibot/utils"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -25,6 +23,7 @@ const (
 	verboseEnv           = "MAGNIFIBOT_VERBOSE"
 	dynamoDBEndpointEnv  = "MAGNIFIBOT_DYNAMODB_ENDPOINT"
 	dynamoDBUserTableEnv = "MAGNIFIBOT_DYNAMODB_USER_TABLE"
+	magnifibotTimeoutEnv = "MAGNIFIBOT_TIMEOUT"
 )
 
 const (
@@ -33,6 +32,7 @@ const (
 	verboseFlag           = "logging.verbose"
 	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
 	dynamoDBUserTableFlag = "aws.dynamodb.tables.user"
+	magnifibotTimeoutFlag = "timeout"
 )
 
 var (
@@ -52,11 +52,13 @@ func init() {
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)
+	viper.SetDefault(magnifibotTimeoutFlag, utils.DefaultTimeout)
 	viper.BindEnv(magnifibotNameFlag, magnifibotNameEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBUserTableFlag, dynamoDBUserTableEnv)
+	viper.BindEnv(magnifibotTimeoutFlag, magnifibotTimeoutEnv)
 
 	var err error
 
@@ -85,7 +87,19 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
-	ctx := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel, err := utils.InitContextWithTimeout(viper.GetString(magnifibotTimeoutFlag))
+	if err != nil {
+		sugar.Warnw(
+			"invalid timeout setting, using default",
+			"timeout",
+			viper.GetString(magnifibotTimeoutFlag),
+			"default",
+			utils.DefaultTimeout,
+			"error",
+			err.Error(),
+		)
+	}
+	defer cancel()
 	sugar.Infow("received request", "method", request.HTTPMethod, "body", request.Body)
 	var update api.Update
 	headers := map[string]string{
@@ -125,7 +139,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			}
 			if api.ValidCommands["suscribe"] == command {
 				sugar.Infow("suscribing user", "chat_id", update.Message.Chat.ID)
-				if err := c.Suscribe(update.Message.Chat.ID, update.Message.From.ID, update.Message.Date, update.Message.Chat.Type); err != nil {
+				if err := c.Suscribe(ctx, update.Message.Chat.ID, update.Message.From.ID, update.Message.Date, update.Message.Chat.Type); err != nil {
 					return createTelegramResponse(
 						http.StatusOK,
 						headers,
@@ -141,7 +155,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 				)
 			}
 			sugar.Infow("unsuscribing user", "chat_id", update.Message.Chat.ID)
-			if err := c.Unsuscribe(update.Message.Chat.ID); err != nil {
+			if err := c.Unsuscribe(ctx, update.Message.Chat.ID); err != nil {
 				return createTelegramResponse(
 					http.StatusOK,
 					headers,
@@ -189,7 +203,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			}
 			if api.ValidCommands["suscribe"] == command {
 				sugar.Infow("suscribing user", "chat_id", update.ChannelPost.Chat.ID)
-				if err := c.Suscribe(update.ChannelPost.Chat.ID, update.ChannelPost.SenderChat.ID, update.ChannelPost.Date, update.ChannelPost.SenderChat.Type); err != nil {
+				if err := c.Suscribe(ctx, update.ChannelPost.Chat.ID, update.ChannelPost.SenderChat.ID, update.ChannelPost.Date, update.ChannelPost.SenderChat.Type); err != nil {
 					return createTelegramResponse(
 						http.StatusOK,
 						headers,
@@ -205,7 +219,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 				)
 			}
 			sugar.Infow("unsuscribing user", "chat_id", update.ChannelPost.Chat.ID)
-			if err := c.Unsuscribe(update.ChannelPost.Chat.ID); err != nil {
+			if err := c.Unsuscribe(ctx, update.ChannelPost.Chat.ID); err != nil {
 				return createTelegramResponse(
 					http.StatusOK,
 					headers,

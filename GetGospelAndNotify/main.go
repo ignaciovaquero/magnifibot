@@ -11,8 +11,6 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/igvaquero18/magnifibot/archimadrid"
 	"github.com/igvaquero18/magnifibot/controller"
@@ -121,50 +119,39 @@ func init() {
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(ctx context.Context, event Event) error {
 	sugar.Infow("received cloudwatch event", "time", event.Time)
-	// TODO: Abstract this in a helper method in the controller (GetChats method)
-	scanOutput, err := c.Scan(ctx, &dynamodb.ScanInput{
-		TableName:            aws.String(c.Config.UserTable),
-		ProjectionExpression: aws.String("ChatID"),
-	})
+	chatIDs, err := c.GetChatIDs(ctx)
 	if err != nil {
-		return fmt.Errorf("error scanning dynamodb table: %w", err)
+		sugar.Errorw("error getting chat IDs", "error", err.Error())
+		return err
 	}
 
 	wg := &sync.WaitGroup{}
 	errCh := make(chan error)
 	doneCh := make(chan struct{})
-	wg.Add(len(scanOutput.Items))
+	wg.Add(len(chatIDs))
 
-	for _, item := range scanOutput.Items {
-		go func(e chan<- error, i map[string]types.AttributeValue) {
-			if chatID, ok := i["ChatID"]; ok {
-				id, ok := chatID.(*types.AttributeValueMemberN)
-				if !ok {
-					e <- fmt.Errorf("error converting ChatID into a string")
-					wg.Done()
-					return
-				}
-				sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", id.Value)
+	for _, chatID := range chatIDs {
+		go func(e chan<- error, id string) {
+			sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", id)
 
-				messageID, err := c.SendGospelToQueue(ctx, id.Value, gospel)
+			messageID, err := c.SendGospelToQueue(ctx, id, gospel)
 
-				if err != nil {
-					e <- fmt.Errorf("error sending message to queue: %w", err)
-					wg.Done()
-					return
-				}
-				sugar.Debugw(
-					"message stored in SQS queue",
-					"queue_url",
-					viper.GetString(c.Config.QueueURL),
-					"message_id",
-					messageID,
-				)
-			} else {
-				e <- fmt.Errorf("error getting ChatID for item %v", i)
+			if err != nil {
+				e <- fmt.Errorf("error sending message to queue: %w", err)
+				wg.Done()
+				return
 			}
+
+			sugar.Debugw(
+				"message stored in SQS queue",
+				"queue_url",
+				viper.GetString(c.Config.QueueURL),
+				"message_id",
+				messageID,
+			)
+
 			wg.Done()
-		}(errCh, item)
+		}(errCh, chatID)
 	}
 
 	go func(d chan<- struct{}) {

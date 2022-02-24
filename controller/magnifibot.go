@@ -17,7 +17,7 @@ type Option func(m *Magnifibot) Option
 type MagnifibotInterface interface {
 	Suscribe(ctx context.Context, chatID, date int64, kind string) error
 	Unsuscribe(ctx context.Context, chatID int64) error
-	GetChats(ctx context.Context) ([]int64, error) // TODO: implement
+	GetChatIDs(ctx context.Context) ([]string, error)
 	SendGospelToQueue(ctx context.Context, chatID string, gospel *archimadrid.Gospel) (string, error)
 }
 
