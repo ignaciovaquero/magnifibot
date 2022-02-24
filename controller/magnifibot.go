@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/igvaquero18/magnifibot/archimadrid"
+	"github.com/mymmrac/telego"
 )
 
 // Option is a function to apply settings to Magnifibot struct
@@ -15,10 +16,12 @@ type Option func(m *Magnifibot) Option
 
 // MagnifibotInterface is the interface implemented by the SmartHome Controller
 type MagnifibotInterface interface {
-	Suscribe(userID, chatID, date int64, kind string) error
-	Unsuscribe(chatID int64) error
-	GetChats() ([]int64, error) // TODO: implement
+	Suscribe(ctx context.Context, chatID, userID, date int64, kind string) error
+	Unsuscribe(ctx context.Context, chatID int64) error
+	GetChatIDs(ctx context.Context) ([]string, error)
 	SendGospelToQueue(ctx context.Context, chatID string, gospel *archimadrid.Gospel) (string, error)
+	GetConfig() *MagnifibotConfig
+	SendTelegram(ctx context.Context, chatID string, message string) (int, error)
 }
 
 // DynamoDBInterface is an interface implemented by the dynamodb.Client that allow
@@ -42,10 +45,16 @@ type SQSSendMessageAPI interface {
 		optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
 }
 
+// TelegramAPI is the interface implemented by the Telegram API
+type TelegramAPI interface {
+	SendMessage(params *telego.SendMessageParams) (*telego.Message, error)
+}
+
 // Magnifibot is the controller for the Magnifibot application.
 type Magnifibot struct {
 	DynamoDBInterface
 	SQSSendMessageAPI
+	TelegramAPI
 	Config *MagnifibotConfig
 }
 
@@ -72,7 +81,7 @@ func NewMagnifibot(opts ...Option) *Magnifibot {
 	return m
 }
 
-// SetDynamoDBClient sets the DynamoDB client for the API
+// SetDynamoDBClient sets the DynamoDB client
 func SetDynamoDBClient(client DynamoDBInterface) Option {
 	return func(m *Magnifibot) Option {
 		prev := m.DynamoDBInterface
@@ -81,7 +90,7 @@ func SetDynamoDBClient(client DynamoDBInterface) Option {
 	}
 }
 
-// SetSQSClient sets the SQS client for the API
+// SetSQSClient sets the SQS client
 func SetSQSClient(client SQSSendMessageAPI) Option {
 	return func(m *Magnifibot) Option {
 		prev := m.SQSSendMessageAPI
@@ -90,7 +99,16 @@ func SetSQSClient(client SQSSendMessageAPI) Option {
 	}
 }
 
-// SetConfig sets the DynamoDB config
+// SetTelegramClient sets the Telegram client
+func SetTelegramClient(client TelegramAPI) Option {
+	return func(m *Magnifibot) Option {
+		prev := m.TelegramAPI
+		m.TelegramAPI = client
+		return SetTelegramClient(prev)
+	}
+}
+
+// SetConfig sets the Magnifibot config
 func SetConfig(c *MagnifibotConfig) Option {
 	return func(m *Magnifibot) Option {
 		prev := m.Config
@@ -104,8 +122,13 @@ func SetConfig(c *MagnifibotConfig) Option {
 	}
 }
 
-func (m *Magnifibot) delete(hashkey string, object types.AttributeValue, table string) error {
-	_, err := m.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+// GetConfig gets the Magnifibot config
+func (m *Magnifibot) GetConfig() *MagnifibotConfig {
+	return m.Config
+}
+
+func (m *Magnifibot) delete(ctx context.Context, hashkey string, object types.AttributeValue, table string) error {
+	_, err := m.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(table),
 		Key:       map[string]types.AttributeValue{hashkey: object},
 	})

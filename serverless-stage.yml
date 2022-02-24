@@ -22,6 +22,7 @@ provider:
     MAGNIFIBOT_SQS_QUEUE_NAME: magnifibot-stage
     MAGNIFIBOT_TELEGRAM_BOT_TOKEN: ${ssm:MAGNIFIBOT_STAGE_TELEGRAM_TOKEN}
     MAGNIFIBOT_DYNAMODB_USER_TABLE: MagnifibotUserStage
+    MAGNIFIBOT_TIMEOUT: 5s
 
   httpApi:
     name: magnifibot-stage

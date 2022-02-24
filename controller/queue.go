@@ -16,7 +16,7 @@ const (
 // SendGospelToQueue sends the gospel for a particular ChatID to the SQS queue configured in
 // the controller. It returns the Message ID on success, and an error on failure.
 func (m *Magnifibot) SendGospelToQueue(ctx context.Context, chatID string, gospel *archimadrid.Gospel) (string, error) {
-	messageOutput, err := m.SendMessage(ctx, &sqs.SendMessageInput{
+	messageOutput, err := m.SQSSendMessageAPI.SendMessage(ctx, &sqs.SendMessageInput{
 		QueueUrl:    aws.String(m.Config.QueueURL),
 		MessageBody: aws.String(gospel.Content),
 		MessageAttributes: map[string]types.MessageAttributeValue{

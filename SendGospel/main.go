@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -36,14 +35,9 @@ const (
 	telegramTokenFlag = "telegram.bot_token"
 )
 
-const (
-	telegramParseMode = "MarkdownV2"
-)
-
 var (
-	c     *controller.Magnifibot
+	c     controller.MagnifibotInterface
 	sugar *zap.SugaredLogger
-	bot   *telego.Bot
 )
 
 // Response is of type SQSEvent since we're leveraging the
@@ -96,7 +90,7 @@ func init() {
 	}
 
 	sugar.Info("creating telegram bot client")
-	bot, err = telego.NewBot(viper.GetString(telegramTokenFlag), telego.WithLogger(sugar))
+	bot, err := telego.NewBot(viper.GetString(telegramTokenFlag), telego.WithLogger(sugar))
 	if err != nil {
 		sugar.Fatalw("error creating telegram bot client", "error", err.Error())
 	}
@@ -106,6 +100,7 @@ func init() {
 			QueueURL: *queueURL.QueueUrl,
 		}),
 		controller.SetSQSClient(sqsClient),
+		controller.SetTelegramClient(bot),
 	)
 
 }
@@ -121,13 +116,7 @@ func Handler(ctx context.Context, event Event) error {
 
 	for _, record := range event.Records {
 		go func(r events.SQSMessage, e chan<- error) {
-			// TODO: make this a method in the controller
-			chatID, err := strconv.Atoi(*r.MessageAttributes["chatID"].StringValue)
-			if err != nil {
-				e <- fmt.Errorf("error converting chat ID from string to integer: %w", err)
-				wg.Done()
-				return
-			}
+			defer wg.Done()
 
 			re := regexp.MustCompile(`([_\*\[\]\(\)\~\>#\+\-\=\|\{\}\.!])`)
 			gospelDay := string(
@@ -143,18 +132,18 @@ func Handler(ctx context.Context, event Event) error {
 				re.ReplaceAll([]byte(r.Body), []byte(`\$1`)),
 			)
 
-			message, err := bot.SendMessage(&telego.SendMessageParams{
-				ChatID:    telego.ChatID{ID: int64(chatID)},
-				ParseMode: telegramParseMode,
-				Text:      fmt.Sprintf("%s\n\n*%s\n%s*\n\n%s", gospelDay, gospelReference, gospelTitle, gospelBody),
-			})
+			chatID := *r.MessageAttributes["chatID"].StringValue
+
+			messageID, err := c.SendTelegram(
+				ctx,
+				chatID,
+				fmt.Sprintf("%s\n\n*%s\n%s*\n\n%s", gospelDay, gospelReference, gospelTitle, gospelBody),
+			)
 			if err != nil {
 				e <- fmt.Errorf("error sending Telegram message: %w", err)
-				wg.Done()
 				return
 			}
-			sugar.Debugw("successfully sent Telegram message", "chat_id", chatID, "message_id", message.MessageID)
-			wg.Done()
+			sugar.Debugw("successfully sent Telegram message", "chat_id", chatID, "message_id", messageID)
 		}(record, errCh)
 	}
 
