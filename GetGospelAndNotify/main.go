@@ -132,13 +132,13 @@ func Handler(ctx context.Context, event Event) error {
 
 	for _, chatID := range chatIDs {
 		go func(e chan<- error, id string) {
+			defer wg.Done()
 			sugar.Debugw("sending message to queue", "queue_url", c.GetConfig().QueueURL, "chat_id", id)
 
 			messageID, err := c.SendGospelToQueue(ctx, id, gospel)
 
 			if err != nil {
 				e <- fmt.Errorf("error sending message to queue: %w", err)
-				wg.Done()
 				return
 			}
 
@@ -150,7 +150,6 @@ func Handler(ctx context.Context, event Event) error {
 				messageID,
 			)
 
-			wg.Done()
 		}(errCh, chatID)
 	}
 
