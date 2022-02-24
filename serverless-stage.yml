@@ -65,8 +65,7 @@ functions:
           name: get_gospel_and_notify_stage
           enabled: true
           description: Get Gospel every day at 5am UTC
-          # rate: cron(0 5 * * ? *) # every day at 5am UTC
-          rate: rate(1 minute)
+          rate: cron(0 5 * * ? *) # every day at 5am UTC
   sendgospelstage:
     handler: bin/sendgospel
     events:
