@@ -121,7 +121,6 @@ func Handler(ctx context.Context, event Event) error {
 	sugar.Infow("received cloudwatch event", "time", event.Time)
 	chatIDs, err := c.GetChatIDs(ctx)
 	if err != nil {
-		sugar.Errorw("error getting chat IDs", "error", err.Error())
 		return err
 	}
 
