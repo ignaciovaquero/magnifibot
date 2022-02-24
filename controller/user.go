@@ -51,7 +51,7 @@ func (m *Magnifibot) GetChatIDs(ctx context.Context) ([]string, error) {
 		if chatID, ok := item["ChatID"]; ok {
 			id, ok := chatID.(*types.AttributeValueMemberN)
 			if !ok {
-				return []string{}, fmt.Errorf("error converting ChatID into a string: %w", err)
+				return []string{}, fmt.Errorf("error converting ChatID into an AttributeValueMemberN: %w", err)
 			}
 			chatIDs = append(chatIDs, id.Value)
 		} else {
