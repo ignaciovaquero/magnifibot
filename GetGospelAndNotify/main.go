@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	c      *controller.Magnifibot
+	c      controller.MagnifibotInterface
 	sugar  *zap.SugaredLogger
 	gospel *archimadrid.Gospel
 )
@@ -132,7 +132,7 @@ func Handler(ctx context.Context, event Event) error {
 
 	for _, chatID := range chatIDs {
 		go func(e chan<- error, id string) {
-			sugar.Debugw("sending message to queue", "queue_url", c.Config.QueueURL, "chat_id", id)
+			sugar.Debugw("sending message to queue", "queue_url", c.GetConfig().QueueURL, "chat_id", id)
 
 			messageID, err := c.SendGospelToQueue(ctx, id, gospel)
 
@@ -145,7 +145,7 @@ func Handler(ctx context.Context, event Event) error {
 			sugar.Debugw(
 				"message stored in SQS queue",
 				"queue_url",
-				viper.GetString(c.Config.QueueURL),
+				viper.GetString(c.GetConfig().QueueURL),
 				"message_id",
 				messageID,
 			)

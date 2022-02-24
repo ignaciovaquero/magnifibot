@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	c     *controller.Magnifibot
+	c     controller.MagnifibotInterface
 	sugar *zap.SugaredLogger
 )
 
