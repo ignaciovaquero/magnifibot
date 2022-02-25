@@ -1,6 +1,7 @@
 package archimadrid
 
 import (
+	"context"
 	"time"
 
 	"github.com/ReneKroon/ttlcache/v2"
@@ -10,6 +11,10 @@ const (
 	DefaultURL = "https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?option=com_archimadrid&format=ajax&task=leer_lecturas"
 	DefaultTTL = 24 * time.Hour
 )
+
+type Archimadrid interface {
+	GetGospel(ctx context.Context, day time.Time) (*Gospel, error)
+}
 
 type Client struct {
 	url string
