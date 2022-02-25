@@ -38,9 +38,8 @@ const (
 )
 
 var (
-	c      controller.MagnifibotInterface
-	sugar  *zap.SugaredLogger
-	gospel *archimadrid.Gospel
+	c     controller.MagnifibotInterface
+	sugar *zap.SugaredLogger
 )
 
 // Response is of type CloudWatchEvent since we're leveraging the
@@ -109,16 +108,18 @@ func init() {
 		controller.SetSQSClient(sqsClient),
 		controller.SetDynamoDBClient(dynamoClient),
 	)
-
-	sugar.Infow("getting gospel for day", "day", time.Now().Format("2006-01-02"))
-	if gospel, err = archimadrid.NewClient().GetGospel(time.Now()); err != nil {
-		sugar.Fatalw("error getting gospel", "error", err.Error())
-	}
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(ctx context.Context, event Event) error {
 	sugar.Infow("received cloudwatch event", "time", event.Time)
+	sugar.Debugw("getting gospel for day", "day", time.Now().Format("2006-01-02"))
+
+	gospel, err := archimadrid.NewClient().GetGospel(ctx, time.Now())
+	if err != nil {
+		sugar.Fatalw("error getting gospel", "error", err.Error())
+	}
+
 	chatIDs, err := c.GetChatIDs(ctx)
 	if err != nil {
 		return err

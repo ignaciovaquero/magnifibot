@@ -1,6 +1,7 @@
 package archimadrid
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -37,21 +38,30 @@ func (c *Client) getGospelFromCache(key string) (*Gospel, error) {
 	return nil, fmt.Errorf("no valid object of type *Gospel found")
 }
 
-func (c *Client) saveGospelInCache(key string, gospel *Gospel) error {
-	return c.Set(key, gospel)
+func (c *Client) saveInCache(key string, o interface{}) error {
+	return c.Set(key, o)
 }
 
-func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
-	today := day.Format("2006-01-02")
+func httpDo(ctx context.Context, req *http.Request, f func(*http.Response, error) error) error {
+	// Run the HTTP request in a goroutine and pass the response to f.
+	c := make(chan error, 1)
+	req = req.WithContext(ctx)
+	go func() { c <- f(http.DefaultClient.Do(req)) }()
+	select {
+	case <-ctx.Done():
+		<-c // Wait for f to return
+		return ctx.Err()
+	case err := <-c:
+		return err
+	}
+}
 
-	gospel, err := c.getGospelFromCache(today)
+func (c *Client) GetGospel(ctx context.Context, day time.Time) (*Gospel, error) {
+	today := day.Format("2006-01-02")
+	gospel, err := c.getGospelFromCache("gospel " + today)
 	if err == nil {
 		return gospel, nil
 	}
-
-	gospels := []gospelResponse{}
-
-	httpClient := http.Client{}
 
 	form := url.Values{}
 	form.Add("dia", today)
@@ -64,25 +74,33 @@ func (c *Client) GetGospel(day time.Time) (*Gospel, error) {
 		return nil, fmt.Errorf("error building the request: %w", err)
 	}
 
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error performing the request: %w", err)
-	}
+	var g *Gospel
 
-	defer resp.Body.Close()
-	if err = json.NewDecoder(resp.Body).Decode(&gospels); err != nil {
+	err = httpDo(ctx, req, func(resp *http.Response, err error) error {
+		if err != nil {
+			return fmt.Errorf("error performing the request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		gospels := []gospelResponse{}
+		if err = json.NewDecoder(resp.Body).Decode(&gospels); err != nil {
+			return err
+		}
+		if len(gospels) <= 0 {
+			return fmt.Errorf("no gospel found for day %s", today)
+		}
+		g, err = getGospelFromResponse(gospels[0])
+		if err != nil {
+			return fmt.Errorf("error getting the gospel from the response: %w", err)
+		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	if len(gospels) <= 0 {
-		return nil, fmt.Errorf("no gospel found for day %s", today)
-	}
-
-	g, err := getGospelFromResponse(gospels[0])
-	if err != nil {
-		return nil, fmt.Errorf("error getting the gospel from the response: %w", err)
-	}
-	return g, c.saveGospelInCache(today, gospel)
+	return g, c.saveInCache("gospel "+today, gospel)
 }
 
 func getGospelFromResponse(response gospelResponse) (*Gospel, error) {
