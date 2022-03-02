@@ -103,7 +103,7 @@ func (c *Client) GetGospel(ctx context.Context, day time.Time) (*Gospel, error) 
 	return g, c.saveInCache("gospel "+today, gospel)
 }
 
-func getGospelFromResponse(response gospelResponse) (*Gospel, error) {
+func getGospelOrLectureFromResponse(response gospelResponse) (*Gospel, error) {
 	text := strings.ReplaceAll(response.PostContent, "\n", "")
 	text = strings.ReplaceAll(text, "\t", "")
 	text = regexp.MustCompile(`EVANGELIO.*`).FindString(text)
