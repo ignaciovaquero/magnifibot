@@ -5,11 +5,10 @@ import (
 	"time"
 )
 
-func (c *Client) getLectureFromCache(key string) (string, error) {
-	return "", nil
+func (c *Client) GetFirstLecture(ctx context.Context, day time.Time) (*Gospel, error) {
+	return c.getGospelOrLecture(ctx, day, `(PRIMERA\sLECTURA).*?Palabra de Dios\.`, "first lecture ")
 }
 
-func (c *Client) GetFirstLecture(ctx context.Context, day time.Time) (string, error) {
-	today := day.Format("2006-01-02")
-	return c.getLectureFromCache("first lecture " + today)
+func (c *Client) GetSecondLecture(ctx context.Context, day time.Time) (*Gospel, error) {
+	return c.getGospelOrLecture(ctx, day, `(SEGUNDA\sLECTURA).*?Palabra de Dios\.`, "second lecture ")
 }
