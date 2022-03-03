@@ -6,9 +6,9 @@ import (
 )
 
 func (c *Client) GetFirstLecture(ctx context.Context, day time.Time) (*Gospel, error) {
-	return c.getGospelOrLecture(ctx, day, `(PRIMERA\sLECTURA).*?Palabra de Dios\.`, "first lecture ")
+	return c.getGospelOrLecture(ctx, day, `(PRIMERA\sLECTURA).*?Palabra de Dios\.`, "first lecture ", false)
 }
 
 func (c *Client) GetSecondLecture(ctx context.Context, day time.Time) (*Gospel, error) {
-	return c.getGospelOrLecture(ctx, day, `(SEGUNDA\sLECTURA).*?Palabra de Dios\.`, "second lecture ")
+	return c.getGospelOrLecture(ctx, day, `(SEGUNDA\sLECTURA).*?Palabra de Dios\.`, "second lecture ", false)
 }

@@ -20,8 +20,13 @@ const (
 	DefaultTTL = 24 * time.Hour
 )
 
+const ResponsePrefix = "response "
+
 type Archimadrid interface {
-	GetGospel(ctx context.Context, day time.Time) (*Gospel, error)
+	GetGospel(context.Context, time.Time) (*Gospel, error)
+	GetFirstLecture(context.Context, time.Time) (*Gospel, error)
+	GetSecondLecture(context.Context, time.Time) (*Gospel, error)
+	GetPsalm(context.Context, time.Time) (*Gospel, error)
 }
 
 type Client struct {
@@ -82,7 +87,8 @@ func SetCacheTTL(ttl time.Duration) Option {
 		return SetCacheTTL(prev)
 	}
 }
-func (c *Client) getFromCache(key string) (*Gospel, error) {
+
+func (c *Client) getGospelFromCache(key string) (*Gospel, error) {
 	val, err := c.Get(key)
 	if err != nil {
 		return nil, err
@@ -91,6 +97,17 @@ func (c *Client) getFromCache(key string) (*Gospel, error) {
 		return gospel, nil
 	}
 	return nil, fmt.Errorf("no valid object of type *Gospel found")
+}
+
+func (c *Client) getResponseFromCache(key string) (*gospelResponse, error) {
+	val, err := c.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	if gospel, ok := val.(*gospelResponse); ok {
+		return gospel, nil
+	}
+	return nil, fmt.Errorf("no valid object of type *gospelResponse found")
 }
 
 func (c *Client) saveInCache(key string, o interface{}) error {
@@ -111,11 +128,24 @@ func httpDo(ctx context.Context, req *http.Request, f func(*http.Response, error
 	}
 }
 
-func (c *Client) getGospelOrLecture(ctx context.Context, day time.Time, regexString, cachePrefix string) (*Gospel, error) {
+func (c *Client) getGospelOrLecture(
+	ctx context.Context,
+	day time.Time,
+	regexString, cachePrefix string, psalm bool,
+) (*Gospel, error) {
 	today := day.Format("2006-01-02")
-	g, err := c.getFromCache(cachePrefix + today)
+	g, err := c.getGospelFromCache(cachePrefix + today)
 	if err == nil {
 		return g, nil
+	}
+
+	r, err := c.getResponseFromCache(ResponsePrefix + today)
+	if err == nil {
+		g, err = getGospelOrLectureFromResponse(r, regexString, psalm)
+		if err != nil {
+			return nil, fmt.Errorf("error getting the gospel from the response: %w", err)
+		}
+		return g, c.saveInCache(cachePrefix+today, g)
 	}
 
 	form := url.Values{}
@@ -135,14 +165,18 @@ func (c *Client) getGospelOrLecture(ctx context.Context, day time.Time, regexStr
 		}
 		defer resp.Body.Close()
 
-		gospels := []gospelResponse{}
+		gospels := []*gospelResponse{}
 		if err = json.NewDecoder(resp.Body).Decode(&gospels); err != nil {
 			return err
 		}
 		if len(gospels) <= 0 {
 			return fmt.Errorf("no gospel or lecture found for day %s", today)
 		}
-		g, err = getGospelOrLectureFromResponse(gospels[0], regexString)
+		err = c.saveInCache(ResponsePrefix+today, gospels[0])
+		if err != nil {
+			return fmt.Errorf("error saving response in cache: %w", err)
+		}
+		g, err = getGospelOrLectureFromResponse(gospels[0], regexString, psalm)
 		if err != nil {
 			return fmt.Errorf("error getting the gospel from the response: %w", err)
 		}
@@ -156,7 +190,7 @@ func (c *Client) getGospelOrLecture(ctx context.Context, day time.Time, regexStr
 	return g, c.saveInCache(cachePrefix+today, g)
 }
 
-func getGospelOrLectureFromResponse(response gospelResponse, regexString string) (*Gospel, error) {
+func getGospelOrLectureFromResponse(response *gospelResponse, regexString string, psalm bool) (*Gospel, error) {
 	r := regexp.MustCompile(regexString)
 	text := strings.ReplaceAll(response.PostContent, "\n", "")
 	text = strings.ReplaceAll(text, "\t", "")
@@ -187,7 +221,7 @@ func getGospelOrLectureFromResponse(response gospelResponse, regexString string)
 				content = nodeContent
 				continue
 			}
-			if i == gospelNodes.Length()-1 {
+			if !psalm && i == gospelNodes.Length()-1 {
 				content = fmt.Sprintf("%s\n\n%s", content, nodeContent)
 				continue
 			}
