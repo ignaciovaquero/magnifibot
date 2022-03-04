@@ -104,7 +104,7 @@ resources:
       Properties:
         QueueName: magnifibot-stage
         MessageRetentionPeriod: 72000 # 20 hours
-        ReceiveMessageWaitTimeSeconds: 0
+        ReceiveMessageWaitTimeSeconds: 20
         VisibilityTimeout: 30 # seconds
 
 #    The following are a few example events you can configure
