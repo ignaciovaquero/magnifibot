@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/igvaquero18/magnifibot/archimadrid"
 	"github.com/mymmrac/telego"
 )
 
@@ -19,9 +18,9 @@ type MagnifibotInterface interface {
 	Suscribe(ctx context.Context, chatID, userID, date int64, kind string) error
 	Unsuscribe(ctx context.Context, chatID int64) error
 	GetChatIDs(ctx context.Context) ([]string, error)
-	SendGospelToQueue(ctx context.Context, chatID string, gospel *archimadrid.Gospel) (string, error)
+	SendMessageToQueue(ctx context.Context, chatID, message string) (string, error)
 	GetConfig() *MagnifibotConfig
-	SendTelegram(ctx context.Context, chatID string, message string) (int, error)
+	SendTelegram(ctx context.Context, chatID, message string) (int, error)
 }
 
 // DynamoDBInterface is an interface implemented by the dynamodb.Client that allow

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/igvaquero18/magnifibot/archimadrid"
 	"github.com/igvaquero18/magnifibot/controller"
 	"github.com/igvaquero18/magnifibot/utils"
 	"github.com/mymmrac/telego"
@@ -118,26 +120,71 @@ func Handler(ctx context.Context, event Event) error {
 		go func(r events.SQSMessage, e chan<- error) {
 			defer wg.Done()
 
+			var magnificat archimadrid.Magnificat
+			err := json.Unmarshal([]byte(r.Body), &magnificat)
+
+			if err != nil {
+				e <- fmt.Errorf("error unmarshalling JSON: %w", err)
+				return
+			}
+
 			re := regexp.MustCompile(`([_\*\[\]\(\)\~\>#\+\-\=\|\{\}\.!])`)
-			gospelDay := string(
-				re.ReplaceAll([]byte(*r.MessageAttributes["gospelDay"].StringValue), []byte(`\$1`)),
+			day := string(re.ReplaceAll([]byte(magnificat.Day), []byte(`\$1`)))
+			firstLectureReference := string(re.ReplaceAll([]byte(magnificat.FirstLecture.Reference), []byte(`\$1`)))
+			firstLectureTitle := string(re.ReplaceAll([]byte(magnificat.FirstLecture.Title), []byte(`\$1`)))
+			firstLectureBody := string(re.ReplaceAll([]byte(magnificat.FirstLecture.Content), []byte(`\$1`)))
+			psalmReference := string(re.ReplaceAll([]byte(magnificat.Psalm.Title), []byte(`\$1`)))
+			psalmTitle := string(re.ReplaceAll([]byte(magnificat.Psalm.Reference), []byte(`\$1`)))
+			psalmBody := string(re.ReplaceAll([]byte(magnificat.Psalm.Content), []byte(`\$1`)))
+			gospelReference := string(re.ReplaceAll([]byte(magnificat.Gosp.Reference), []byte(`\$1`)))
+			gospelTitle := string(re.ReplaceAll([]byte(magnificat.Gosp.Title), []byte(`\$1`)))
+			gospelBody := string(re.ReplaceAll([]byte(magnificat.Gosp.Content), []byte(`\$1`)))
+
+			message := fmt.Sprintf(
+				"%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s",
+				day,
+				firstLectureReference,
+				firstLectureTitle,
+				firstLectureBody,
+				psalmReference,
+				psalmTitle,
+				psalmBody,
+				gospelReference,
+				gospelTitle,
+				gospelBody,
 			)
-			gospelReference := string(
-				re.ReplaceAll([]byte(*r.MessageAttributes["gospelReference"].StringValue), []byte(`\$1`)),
-			)
-			gospelTitle := string(
-				re.ReplaceAll([]byte(*r.MessageAttributes["gospelTitle"].StringValue), []byte(`\$1`)),
-			)
-			gospelBody := string(
-				re.ReplaceAll([]byte(r.Body), []byte(`\$1`)),
-			)
+
+			if magnificat.SecondLecture != nil {
+				secondLectureReference := string(
+					re.ReplaceAll([]byte(magnificat.SecondLecture.Reference), []byte(`\$1`)),
+				)
+				secondLectureTitle := string(re.ReplaceAll([]byte(magnificat.SecondLecture.Title), []byte(`\$1`)))
+				secondLectureBody := string(re.ReplaceAll([]byte(magnificat.SecondLecture.Content), []byte(`\$1`)))
+
+				message = fmt.Sprintf(
+					"%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s",
+					day,
+					firstLectureReference,
+					firstLectureTitle,
+					firstLectureBody,
+					psalmReference,
+					psalmTitle,
+					psalmBody,
+					secondLectureReference,
+					secondLectureTitle,
+					secondLectureBody,
+					gospelReference,
+					gospelTitle,
+					gospelBody,
+				)
+			}
 
 			chatID := *r.MessageAttributes["chatID"].StringValue
 
 			messageID, err := c.SendTelegram(
 				ctx,
 				chatID,
-				fmt.Sprintf("%s\n\n*%s\n%s*\n\n%s", gospelDay, gospelReference, gospelTitle, gospelBody),
+				message,
 			)
 			if err != nil {
 				e <- fmt.Errorf("error sending Telegram message: %w", err)

@@ -35,7 +35,8 @@ type Client struct {
 	ttlcache.SimpleCache
 }
 
-// gospelResponse is a struct that contains the response from the API
+// gospelResponse is a struct that contains the response
+// from the Archimadrid API
 type gospelResponse struct {
 	PostTitle   string `json:"post_title"`
 	PostContent string `json:"post_content"`
@@ -47,6 +48,16 @@ type Gospel struct {
 	Title     string `json:"title"`
 	Reference string `json:"reference"`
 	Content   string `json:"content"`
+}
+
+// Magnificat is a struct that groups together all the
+// lectures for a particular Day
+type Magnificat struct {
+	Day           string  `json:"day"`
+	FirstLecture  *Gospel `json:"first_lecture"`
+	Psalm         *Gospel `json:"psalm"`
+	SecondLecture *Gospel `json:"second_lecture,omitempty"`
+	Gosp          *Gospel `json:"gospel"`
 }
 
 // Option is a function to apply settings to Client structure
