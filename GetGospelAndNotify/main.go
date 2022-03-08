@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -117,10 +118,39 @@ func init() {
 func Handler(ctx context.Context, event Event) error {
 	sugar.Infow("received cloudwatch event", "time", event.Time)
 	sugar.Debugw("getting gospel for day", "day", time.Now().Format("2006-01-02"))
+	day := time.Now()
 
-	gospel, err := a.GetGospel(ctx, time.Now())
+	gospel, err := a.GetGospel(ctx, day)
 	if err != nil {
 		sugar.Fatalw("error getting gospel", "error", err.Error())
+	}
+	firstLecture, err := a.GetFirstLecture(ctx, day)
+	if err != nil {
+		sugar.Fatalw("error getting first lecture", "error", err.Error())
+	}
+	psalm, err := a.GetPsalm(ctx, day)
+	if err != nil {
+		sugar.Fatalw("error getting psalm", "error", err.Error())
+	}
+	secondLecture, err := a.GetSecondLecture(ctx, day)
+	if err != nil {
+		sugar.Fatalw("error getting second lecture", "error", err.Error())
+	}
+
+	magnificat := &archimadrid.Magnificat{
+		Day:          gospel.Day,
+		FirstLecture: firstLecture,
+		Psalm:        psalm,
+		Gosp:         gospel,
+	}
+
+	if len(secondLecture.Content) > 0 {
+		magnificat.SecondLecture = secondLecture
+	}
+
+	magnificatMessage, err := json.Marshal(magnificat)
+	if err != nil {
+		sugar.Fatalw("error converting message into JSON", "error", err.Error())
 	}
 
 	chatIDs, err := c.GetChatIDs(ctx)
@@ -138,7 +168,7 @@ func Handler(ctx context.Context, event Event) error {
 			defer wg.Done()
 			sugar.Debugw("sending message to queue", "queue_url", c.GetConfig().QueueURL, "chat_id", id)
 
-			messageID, err := c.SendGospelToQueue(ctx, id, gospel)
+			messageID, err := c.SendMessageToQueue(ctx, id, string(magnificatMessage))
 
 			if err != nil {
 				e <- fmt.Errorf("error sending message to queue: %w", err)
