@@ -239,6 +239,9 @@ func getGospelOrLectureFromResponse(response *gospelResponse, regexString string
 			content = fmt.Sprintf("%s\n%s", content, nodeContent)
 		}
 	}
+	if content == "" {
+		return nil, fmt.Errorf("content is empty for %s", reference)
+	}
 	return &Gospel{
 		Day:       response.PostTitle,
 		Title:     title,
