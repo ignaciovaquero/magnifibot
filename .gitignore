@@ -2,3 +2,4 @@ bin
 .serverless
 docker
 poc
+coverage.out
