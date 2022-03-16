@@ -17,7 +17,7 @@ func InitSugaredLogger(verbose bool) (*zap.SugaredLogger, error) {
 		},
 		Encoding:         "json",
 		EncoderConfig:    zap.NewProductionEncoderConfig(),
-		OutputPaths:      []string{"stderr"},
+		OutputPaths:      []string{"stdout"},
 		ErrorOutputPaths: []string{"stderr"},
 	}
 	if verbose {

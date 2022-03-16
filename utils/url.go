@@ -15,7 +15,7 @@ func ValidateOriginURLsFromArray(urls []string) error {
 	}
 	for _, u := range urls {
 		if _, err := url.ParseRequestURI(u); err != nil {
-			return fmt.Errorf("Error parsing origin '%s': %w", u, err)
+			return fmt.Errorf("error parsing origin '%s': %w", u, err)
 		}
 	}
 	return nil
