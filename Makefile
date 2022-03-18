@@ -1,11 +1,14 @@
-.PHONY: build clean fullclean localstack dev deploy
+.PHONY: test build clean fullclean localstack dev deploy
 
 AWS_REGION ?= eu-west-3
 AWS_PROFILE ?= serverless
 LOCALSTACK_PORT ?= 4566
 LOCAL_DYNAMODB_PORT ?= 8000
 
-build:
+test:
+	go test -coverprofile=coverage.out -cover -v ./...
+
+build: test
 	export GO111MODULE=on
 	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/handletelegram HandleTelegramCommands/main.go
 	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/getgospelandnotify GetGospelAndNotify/main.go
