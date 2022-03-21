@@ -103,7 +103,7 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: magnifibot-stage
-        MessageRetentionPeriod: 72000 # 20 hours
+        MessageRetentionPeriod: 3600 # 1 hour
         ReceiveMessageWaitTimeSeconds: 20
         VisibilityTimeout: 30 # seconds
 
