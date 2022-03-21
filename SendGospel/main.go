@@ -140,20 +140,45 @@ func Handler(ctx context.Context, event Event) error {
 			gospelTitle := string(re.ReplaceAll([]byte(magnificat.Gosp.Title), []byte(`\$1`)))
 			gospelBody := string(re.ReplaceAll([]byte(magnificat.Gosp.Content), []byte(`\$1`)))
 
-			message := fmt.Sprintf(
-				"%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s",
+			chatID := *r.MessageAttributes["chatID"].StringValue
+
+			// Send day
+			messageID, err := c.SendTelegram(ctx, chatID, fmt.Sprintf("*%s*", day))
+			if err != nil {
+				e <- fmt.Errorf("error sending day %s as Telegram message: %w", day, err)
+				return
+			}
+			sugar.Debugw(
+				"successfully sent day as Telegram message",
+				"day",
 				day,
-				firstLectureReference,
-				firstLectureTitle,
-				firstLectureBody,
-				psalmReference,
-				psalmTitle,
-				psalmBody,
-				gospelReference,
-				gospelTitle,
-				gospelBody,
+				"chat_id",
+				chatID,
+				"message_id",
+				messageID,
 			)
 
+			// Send First Lecture
+			messageID, err = c.SendTelegram(
+				ctx,
+				chatID,
+				fmt.Sprintf("*%s\n%s*\n\n%s", firstLectureReference, firstLectureTitle, firstLectureBody),
+			)
+			if err != nil {
+				e <- fmt.Errorf("error sending first lecture as Telegram message: %w", err)
+				return
+			}
+			sugar.Debugw(
+				"successfully sent first lecture as Telegram message",
+				"first_lecture_reference",
+				firstLectureReference,
+				"chat_id",
+				chatID,
+				"message_id",
+				messageID,
+			)
+
+			// Send Second Lecture if exists
 			if magnificat.SecondLecture != nil {
 				secondLectureReference := string(
 					re.ReplaceAll([]byte(magnificat.SecondLecture.Reference), []byte(`\$1`)),
@@ -161,36 +186,57 @@ func Handler(ctx context.Context, event Event) error {
 				secondLectureTitle := string(re.ReplaceAll([]byte(magnificat.SecondLecture.Title), []byte(`\$1`)))
 				secondLectureBody := string(re.ReplaceAll([]byte(magnificat.SecondLecture.Content), []byte(`\$1`)))
 
-				message = fmt.Sprintf(
-					"%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s\n\n*%s\n%s*\n\n%s",
-					day,
-					firstLectureReference,
-					firstLectureTitle,
-					firstLectureBody,
-					psalmReference,
-					psalmTitle,
-					psalmBody,
+				messageID, err = c.SendTelegram(
+					ctx,
+					chatID,
+					fmt.Sprintf("*%s\n%s*\n\n%s", secondLectureReference, secondLectureTitle, secondLectureBody),
+				)
+				if err != nil {
+					e <- fmt.Errorf("error sending second lecture as Telegram message: %w", err)
+					return
+				}
+				sugar.Debugw(
+					"successfully sent second lecture as Telegram message",
+					"second_lecture_reference",
 					secondLectureReference,
-					secondLectureTitle,
-					secondLectureBody,
-					gospelReference,
-					gospelTitle,
-					gospelBody,
+					"chat_id",
+					chatID,
+					"message_id",
+					messageID,
 				)
 			}
 
-			chatID := *r.MessageAttributes["chatID"].StringValue
-
-			messageID, err := c.SendTelegram(
-				ctx,
-				chatID,
-				message,
-			)
+			// Send Psalm
+			messageID, err = c.SendTelegram(ctx, chatID, fmt.Sprintf("*%s\n%s*\n\n%s", psalmReference, psalmTitle, psalmBody))
 			if err != nil {
-				e <- fmt.Errorf("error sending Telegram message: %w", err)
+				e <- fmt.Errorf("error sending psalm as Telegram message: %w", err)
 				return
 			}
-			sugar.Debugw("successfully sent Telegram message", "chat_id", chatID, "message_id", messageID)
+			sugar.Debugw(
+				"successfully sent psalm as Telegram message",
+				"psalm_reference",
+				psalmTitle,
+				"chat_id",
+				chatID,
+				"message_id",
+				messageID,
+			)
+
+			// Send Gospel
+			messageID, err = c.SendTelegram(ctx, chatID, fmt.Sprintf("*%s\n%s*\n\n%s", gospelReference, gospelTitle, gospelBody))
+			if err != nil {
+				e <- fmt.Errorf("error sending gospel as Telegram message: %w", err)
+				return
+			}
+			sugar.Debugw(
+				"successfully sent gospel as Telegram message",
+				"gospel_reference",
+				gospelReference,
+				"chat_id",
+				chatID,
+				"message_id",
+				messageID,
+			)
 		}(record, errCh)
 	}
 
