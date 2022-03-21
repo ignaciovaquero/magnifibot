@@ -23,6 +23,11 @@ func TestIsValid(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "unsuscribe command",
+			command:  ToCommand("obtener"),
+			expected: true,
+		},
+		{
 			name:     "invalid suscribe command",
 			command:  ToCommand("suscribe"),
 			expected: false,
@@ -30,6 +35,11 @@ func TestIsValid(t *testing.T) {
 		{
 			name:     "invalid unsuscribe command",
 			command:  ToCommand("unsuscribe"),
+			expected: false,
+		},
+		{
+			name:     "invalid unsuscribe command",
+			command:  ToCommand("on_demand"),
 			expected: false,
 		},
 	}
@@ -49,7 +59,7 @@ func TestGetValidCommands(t *testing.T) {
 	}{
 		{
 			name:     "Get valid commands",
-			expected: []Command{"/suscribirme", "/baja"},
+			expected: []Command{"/suscribirme", "/baja", "/obtener"},
 		},
 	}
 
@@ -68,7 +78,7 @@ func TestGetValidCommandsString(t *testing.T) {
 	}{
 		{
 			name:     "",
-			expected: []string{"/suscribirme", "/baja"},
+			expected: []string{"/suscribirme", "/baja", "/obtener"},
 		},
 	}
 

@@ -4,7 +4,7 @@ import "fmt"
 
 type Command string
 
-var ValidCommands = map[string]Command{"suscribe": "suscribirme", "unsuscribe": "baja"}
+var ValidCommands = map[string]Command{"suscribe": "suscribirme", "unsuscribe": "baja", "on_demand": "obtener"}
 
 func (c Command) IsValid() bool {
 	for _, cmd := range ValidCommands {
