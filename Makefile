@@ -13,6 +13,7 @@ build: test
 	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/handletelegram HandleTelegramCommands/main.go
 	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/getgospelandnotify GetGospelAndNotify/main.go
 	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/sendgospel SendGospel/main.go
+	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/ondemand OnDemand/main.go
 
 clean:
 	rm -rf ./bin ./vendor

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/igvaquero18/magnifibot/api"
 	"github.com/igvaquero18/magnifibot/controller"
 	"github.com/igvaquero18/magnifibot/utils"
@@ -20,6 +23,8 @@ import (
 const (
 	magnifibotNameEnv    = "MAGNIFIBOT_NAME"
 	awsRegionEnv         = "MAGNIFIBOT_AWS_REGION"
+	sqsEndpointEnv       = "MAGNIFIBOT_SQS_ENDPOINT"
+	sqsQueueNameEnv      = "MAGNIFIBOT_SQS_ON_DEMAND_QUEUE_NAME"
 	verboseEnv           = "MAGNIFIBOT_VERBOSE"
 	dynamoDBEndpointEnv  = "MAGNIFIBOT_DYNAMODB_ENDPOINT"
 	dynamoDBUserTableEnv = "MAGNIFIBOT_DYNAMODB_USER_TABLE"
@@ -29,6 +34,8 @@ const (
 const (
 	magnifibotNameFlag    = "name"
 	awsRegionFlag         = "aws.region"
+	sqsEndpointFlag       = "aws.sqs.endpoint"
+	sqsQueueNameFlag      = "aws.sqs.on_demand_queue_name"
 	verboseFlag           = "logging.verbose"
 	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
 	dynamoDBUserTableFlag = "aws.dynamodb.tables.user"
@@ -49,12 +56,16 @@ type Response events.APIGatewayProxyResponse
 func init() {
 	viper.SetDefault(magnifibotNameFlag, "magnifibot_bot")
 	viper.SetDefault(awsRegionFlag, "eu-west-3")
+	viper.SetDefault(sqsEndpointFlag, "")
+	viper.SetDefault(sqsQueueNameFlag, controller.DefaultOnDemandQueueName)
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)
 	viper.SetDefault(magnifibotTimeoutFlag, utils.DefaultTimeout)
 	viper.BindEnv(magnifibotNameFlag, magnifibotNameEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
+	viper.BindEnv(sqsEndpointFlag, sqsEndpointEnv)
+	viper.BindEnv(sqsQueueNameFlag, sqsQueueNameEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBUserTableFlag, dynamoDBUserTableEnv)
@@ -69,7 +80,28 @@ func init() {
 	}
 
 	region := viper.GetString(awsRegionFlag)
+	sqsEndpoint := viper.GetString(sqsEndpointFlag)
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
+
+	sugar.Infow("creating SQS client", "region", region, "url", viper.GetString(sqsEndpointFlag))
+	sqsClient, err := utils.InitSQSClient(region, sqsEndpoint)
+	if err != nil {
+		sugar.Fatalw("error creating SQS client", "error", err.Error())
+	}
+
+	queueURL, err := sqsClient.GetQueueUrl(context.TODO(), &sqs.GetQueueUrlInput{
+		QueueName: aws.String(viper.GetString(sqsQueueNameFlag)),
+	})
+
+	if err != nil {
+		sugar.Fatalw(
+			"error getting the queue URL",
+			"queue_name",
+			viper.GetString(sqsQueueNameFlag),
+			"error",
+			err.Error(),
+		)
+	}
 
 	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
 	dynamoClient, err := utils.InitDynamoClient(region, dynamoDBEndpoint)
@@ -78,9 +110,11 @@ func init() {
 	}
 
 	c = controller.NewMagnifibot(
+		controller.SetSQSClient(sqsClient),
 		controller.SetDynamoDBClient(dynamoClient),
 		controller.SetConfig(&controller.MagnifibotConfig{
 			UserTable: viper.GetString(dynamoDBUserTableFlag),
+			QueueURL:  *queueURL.QueueUrl,
 		}),
 	)
 }
@@ -122,59 +156,14 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			"text",
 			update.Message.Text,
 		)
-		re := regexp.MustCompile(`/(\w*)@?\w*`)
-		submatch := re.FindStringSubmatch(update.Message.Text)
-		if submatch != nil {
-			command := api.ToCommand(submatch[1])
-			if !command.IsValid() {
-				return createTelegramResponse(
-					http.StatusOK,
-					headers,
-					update.Message.Chat.ID,
-					fmt.Sprintf(
-						"Lo siento, solo acepto los siguientes comandos: %s",
-						strings.Join(api.GetValidCommandsString(), ", "),
-					),
-				)
-			}
-			if api.ValidCommands["suscribe"] == command {
-				sugar.Infow("suscribing user", "chat_id", update.Message.Chat.ID)
-				if err := c.Suscribe(ctx, update.Message.Chat.ID, update.Message.From.ID, update.Message.Date, update.Message.Chat.Type); err != nil {
-					return createTelegramResponse(
-						http.StatusOK,
-						headers,
-						update.Message.Chat.ID,
-						fmt.Sprintf("Lo siento, no pude suscribirte: %s", err.Error()),
-					)
-				}
-				return createTelegramResponse(
-					http.StatusOK,
-					headers,
-					update.Message.Chat.ID,
-					"¡Hecho! Te enviaré el Evangelio cada día.",
-				)
-			}
-			sugar.Infow("unsuscribing user", "chat_id", update.Message.Chat.ID)
-			if err := c.Unsuscribe(ctx, update.Message.Chat.ID); err != nil {
-				return createTelegramResponse(
-					http.StatusOK,
-					headers,
-					update.Message.Chat.ID,
-					fmt.Sprintf("Lo siento, no pude darte de baja: %s", err.Error()),
-				)
-			}
-			return createTelegramResponse(
-				http.StatusOK,
-				headers,
-				update.Message.Chat.ID,
-				"¡Hecho! Ya no te enviaré más el Evangelio.",
-			)
-		}
-		return createTelegramResponse(
-			http.StatusOK,
-			headers,
+		return handleCommand(
+			ctx,
+			`/(\w*)@?\w*`,
+			update.Message.Text,
+			update.Message.Chat.Type,
 			update.Message.Chat.ID,
-			"Lo siento, solo acepto comandos de Telegram.",
+			update.Message.From.ID,
+			update.Message.Date,
 		)
 	}
 
@@ -186,59 +175,14 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			"text",
 			update.ChannelPost.Text,
 		)
-		re := regexp.MustCompile(fmt.Sprintf(`/(\w*)@%s`, viper.GetString(magnifibotNameFlag)))
-		submatch := re.FindStringSubmatch(update.ChannelPost.Text)
-		if submatch != nil {
-			command := api.ToCommand(submatch[1])
-			if !command.IsValid() {
-				return createTelegramResponse(
-					http.StatusOK,
-					headers,
-					update.ChannelPost.Chat.ID,
-					fmt.Sprintf(
-						"Lo siento, solo acepto los siguientes comandos: %s",
-						strings.Join(api.GetValidCommandsString(), ", "),
-					),
-				)
-			}
-			if api.ValidCommands["suscribe"] == command {
-				sugar.Infow("suscribing user", "chat_id", update.ChannelPost.Chat.ID)
-				if err := c.Suscribe(ctx, update.ChannelPost.Chat.ID, update.ChannelPost.SenderChat.ID, update.ChannelPost.Date, update.ChannelPost.SenderChat.Type); err != nil {
-					return createTelegramResponse(
-						http.StatusOK,
-						headers,
-						update.ChannelPost.Chat.ID,
-						fmt.Sprintf("Lo siento, no pude suscribirte: %s", err.Error()),
-					)
-				}
-				return createTelegramResponse(
-					http.StatusOK,
-					headers,
-					update.ChannelPost.Chat.ID,
-					"¡Hecho! Te enviaré el Evangelio cada día.",
-				)
-			}
-			sugar.Infow("unsuscribing user", "chat_id", update.ChannelPost.Chat.ID)
-			if err := c.Unsuscribe(ctx, update.ChannelPost.Chat.ID); err != nil {
-				return createTelegramResponse(
-					http.StatusOK,
-					headers,
-					update.ChannelPost.Chat.ID,
-					fmt.Sprintf("Lo siento, no pude darte de baja: %s", err.Error()),
-				)
-			}
-			return createTelegramResponse(
-				http.StatusOK,
-				headers,
-				update.ChannelPost.Chat.ID,
-				"¡Hecho! Ya no te enviaré más el Evangelio.",
-			)
-		}
-		return createTelegramResponse(
-			http.StatusOK,
-			headers,
+		return handleCommand(
+			ctx,
+			fmt.Sprintf(`/(\w*)@%s`, viper.GetString(magnifibotNameFlag)),
+			update.ChannelPost.Text,
+			update.ChannelPost.SenderChat.Type,
 			update.ChannelPost.Chat.ID,
-			"Lo siento, solo acepto comandos de Telegram.",
+			update.ChannelPost.SenderChat.ID,
+			update.ChannelPost.Date,
 		)
 	}
 	return Response{
@@ -248,9 +192,80 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	}, nil
 }
 
+func handleCommand(ctx context.Context, regexPattern, body, kind string, chatID, userID, date int64) (Response, error) {
+	re := regexp.MustCompile(regexPattern)
+	submatch := re.FindStringSubmatch(body)
+	if submatch != nil {
+		command := api.ToCommand(submatch[1])
+		if !command.IsValid() {
+			return createTelegramResponse(
+				http.StatusOK,
+				chatID,
+				fmt.Sprintf(
+					"Lo siento, solo acepto los siguientes comandos: %s",
+					strings.Join(api.GetValidCommandsString(), ", "),
+				),
+			)
+		}
+		if api.ValidCommands["suscribe"] == command {
+			sugar.Infow("suscribe operation", "chat_id", chatID)
+			if err := c.Suscribe(ctx, chatID, userID, date, kind); err != nil {
+				return createTelegramResponse(
+					http.StatusOK,
+					chatID,
+					fmt.Sprintf("Lo siento, no he podido suscribirte: %s", err.Error()),
+				)
+			}
+			return createTelegramResponse(
+				http.StatusOK,
+				chatID,
+				"¡Hecho! Te enviaré el Evangelio cada día.",
+			)
+		} else if api.ValidCommands["unsuscribe"] == command {
+			sugar.Infow("unsuscribe operation", "chat_id", chatID)
+			if err := c.Unsuscribe(ctx, chatID); err != nil {
+				return createTelegramResponse(
+					http.StatusOK,
+					chatID,
+					fmt.Sprintf("Lo siento, no he podido darte de baja: %s", err.Error()),
+				)
+			}
+			return createTelegramResponse(
+				http.StatusOK,
+				chatID,
+				"¡Hecho! Ya no te enviaré más el Evangelio.",
+			)
+		}
+
+		sugar.Infow("on demand operation", "chat_id", chatID)
+		messageID, err := c.SendMessageToQueue(ctx, fmt.Sprintf("%d", chatID), "on_demand")
+		if err != nil {
+			return createTelegramResponse(http.StatusOK, chatID, "Lo siento, algo ha fallado")
+		}
+		sugar.Debugw(
+			"successfully sent message to queue",
+			"message_id",
+			messageID,
+			"chat_id",
+			chatID,
+			"queue_name",
+			viper.GetString(sqsQueueNameFlag),
+		)
+
+		return Response{
+			Body:       "success",
+			StatusCode: http.StatusOK,
+		}, nil
+	}
+	return createTelegramResponse(
+		http.StatusOK,
+		chatID,
+		"Lo siento, solo acepto comandos de Telegram.",
+	)
+}
+
 func createTelegramResponse(
 	status int,
-	headers map[string]string,
 	chatID int64,
 	text string,
 ) (Response, error) {
@@ -258,6 +273,9 @@ func createTelegramResponse(
 		ChatID: chatID,
 		Text:   text,
 		Method: "sendMessage",
+	}
+	headers := map[string]string{
+		"Content-Type": "application/json",
 	}
 
 	body, err := json.Marshal(t)
