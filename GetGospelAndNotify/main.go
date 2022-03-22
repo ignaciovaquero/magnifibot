@@ -76,7 +76,7 @@ func init() {
 	sqsEndpoint := viper.GetString(sqsEndpointFlag)
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
 
-	sugar.Infow("creating SQS client", "region", region, "url", viper.GetString(sqsEndpointFlag))
+	sugar.Infow("creating SQS client", "region", region, "url", sqsEndpoint)
 	sqsClient, err := utils.InitSQSClient(region, sqsEndpoint)
 	if err != nil {
 		sugar.Fatalw("error creating SQS client", "error", err.Error())

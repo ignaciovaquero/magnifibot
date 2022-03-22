@@ -24,7 +24,7 @@ const (
 	magnifibotNameEnv    = "MAGNIFIBOT_NAME"
 	awsRegionEnv         = "MAGNIFIBOT_AWS_REGION"
 	sqsEndpointEnv       = "MAGNIFIBOT_SQS_ENDPOINT"
-	sqsQueueNameEnv      = "MAGNIFIBOT_SQS_QUEUE_NAME"
+	sqsQueueNameEnv      = "MAGNIFIBOT_SQS_ON_DEMAND_QUEUE_NAME"
 	verboseEnv           = "MAGNIFIBOT_VERBOSE"
 	dynamoDBEndpointEnv  = "MAGNIFIBOT_DYNAMODB_ENDPOINT"
 	dynamoDBUserTableEnv = "MAGNIFIBOT_DYNAMODB_USER_TABLE"
@@ -35,7 +35,7 @@ const (
 	magnifibotNameFlag    = "name"
 	awsRegionFlag         = "aws.region"
 	sqsEndpointFlag       = "aws.sqs.endpoint"
-	sqsQueueNameFlag      = "aws.sqs.queue_name"
+	sqsQueueNameFlag      = "aws.sqs.on_demand_queue_name"
 	verboseFlag           = "logging.verbose"
 	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
 	dynamoDBUserTableFlag = "aws.dynamodb.tables.user"
@@ -57,7 +57,7 @@ func init() {
 	viper.SetDefault(magnifibotNameFlag, "magnifibot_bot")
 	viper.SetDefault(awsRegionFlag, "eu-west-3")
 	viper.SetDefault(sqsEndpointFlag, "")
-	viper.SetDefault(sqsQueueNameFlag, controller.DefaultQueueName)
+	viper.SetDefault(sqsQueueNameFlag, controller.DefaultOnDemandQueueName)
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)
@@ -83,21 +83,22 @@ func init() {
 	sqsEndpoint := viper.GetString(sqsEndpointFlag)
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
 
-	sugar.Infow("creating SQS client", "region", region, "url", viper.GetString(sqsEndpointFlag))
+	sugar.Infow("creating SQS client", "region", region, "url", sqsEndpoint)
 	sqsClient, err := utils.InitSQSClient(region, sqsEndpoint)
 	if err != nil {
 		sugar.Fatalw("error creating SQS client", "error", err.Error())
 	}
 
+	queueName := viper.GetString(sqsQueueNameFlag)
 	queueURL, err := sqsClient.GetQueueUrl(context.TODO(), &sqs.GetQueueUrlInput{
-		QueueName: aws.String(viper.GetString(sqsQueueNameFlag)),
+		QueueName: aws.String(queueName),
 	})
 
 	if err != nil {
 		sugar.Fatalw(
 			"error getting the queue URL",
 			"queue_name",
-			viper.GetString(sqsQueueNameFlag),
+			queueName,
 			"error",
 			err.Error(),
 		)
@@ -238,7 +239,24 @@ func handleCommand(ctx context.Context, regexPattern, body, kind string, chatID,
 		}
 
 		sugar.Infow("on demand operation", "chat_id", chatID)
+		messageID, err := c.SendMessageToQueue(ctx, fmt.Sprintf("%d", chatID), "on_demand")
+		if err != nil {
+			return createTelegramResponse(http.StatusOK, chatID, "Lo siento, algo ha fallado")
+		}
+		sugar.Debugw(
+			"successfully sent message to queue",
+			"message_id",
+			messageID,
+			"chat_id",
+			chatID,
+			"queue_name",
+			viper.GetString(sqsQueueNameFlag),
+		)
 
+		return Response{
+			Body:       "success",
+			StatusCode: http.StatusOK,
+		}, nil
 	}
 	return createTelegramResponse(
 		http.StatusOK,

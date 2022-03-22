@@ -76,6 +76,16 @@ functions:
           batchSize: 20
           maximumBatchingWindow: 20
           functionResponseType: ReportBatchItemFailures
+  ondemand:
+    handler: bin/ondemand
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - OnDemand
+              - Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
 
 package:
   patterns:
@@ -103,6 +113,13 @@ resources:
         QueueName: magnifibot
         MessageRetentionPeriod: 10800 # 3 hours
         ReceiveMessageWaitTimeSeconds: 20
+        VisibilityTimeout: 30 # seconds
+    OnDemand:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: magnifibot-on-demand
+        MessageRetentionPeriod: 300 # 5 minutes
+        ReceiveMessageWaitTimeSeconds: 0
         VisibilityTimeout: 30 # seconds
 
 #    The following are a few example events you can configure
