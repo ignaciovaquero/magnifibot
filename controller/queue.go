@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	DefaultQueueName = "magnifibot"
+	DefaultQueueName         = "magnifibot"
+	DefaultOnDemandQueueName = "magnifibot-on-demand"
 )
 
 // SendGospelToQueue sends the gospel for a particular ChatID to the SQS queue configured in

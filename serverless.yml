@@ -20,7 +20,9 @@ provider:
   environment:
     MAGNIFIBOT_VERBOSE: "true"
     MAGNIFIBOT_SQS_QUEUE_NAME: magnifibot
+    MAGNIFIBOT_SQS_ON_DEMAND_QUEUE_NAME: magnifibot-on-demand
     MAGNIFIBOT_TELEGRAM_BOT_TOKEN: ${ssm:MAGNIFIBOT_TELEGRAM_TOKEN}
+    MAGNIFIBOT_DYNAMODB_USER_TABLE: MagnifibotUser
     MAGNIFIBOT_TIMEOUT: 10s
 
   httpApi:
@@ -48,6 +50,9 @@ provider:
             - Fn::Join:
                 - ""
                 - arn:aws:sqs:eu-west-3:106260645150:magnifibot
+            - Fn::Join:
+                - ""
+                - arn:aws:sqs:eu-west-3:106260645150:magnifibot-on-demand
 
 functions:
   handletelegram:
@@ -76,6 +81,16 @@ functions:
           batchSize: 20
           maximumBatchingWindow: 20
           functionResponseType: ReportBatchItemFailures
+  ondemand:
+    handler: bin/ondemand
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - OnDemand
+              - Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
 
 package:
   patterns:
@@ -103,6 +118,13 @@ resources:
         QueueName: magnifibot
         MessageRetentionPeriod: 10800 # 3 hours
         ReceiveMessageWaitTimeSeconds: 20
+        VisibilityTimeout: 30 # seconds
+    OnDemand:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: magnifibot-on-demand
+        MessageRetentionPeriod: 300 # 5 minutes
+        ReceiveMessageWaitTimeSeconds: 0
         VisibilityTimeout: 30 # seconds
 
 #    The following are a few example events you can configure
