@@ -89,16 +89,15 @@ func init() {
 		sugar.Fatalw("error creating SQS client", "error", err.Error())
 	}
 
-	queueName := viper.GetString(sqsQueueNameFlag)
 	queueURL, err := sqsClient.GetQueueUrl(context.TODO(), &sqs.GetQueueUrlInput{
-		QueueName: aws.String(queueName),
+		QueueName: aws.String(viper.GetString(sqsQueueNameFlag)),
 	})
 
 	if err != nil {
 		sugar.Fatalw(
 			"error getting the queue URL",
 			"queue_name",
-			queueName,
+			viper.GetString(sqsQueueNameFlag),
 			"error",
 			err.Error(),
 		)

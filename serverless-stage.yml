@@ -50,6 +50,9 @@ provider:
             - Fn::Join:
                 - ""
                 - arn:aws:sqs:eu-west-3:106260645150:magnifibot-stage
+            - Fn::Join:
+                - ""
+                - arn:aws:sqs:eu-west-3:106260645150:magnifibot-on-demand-stage
 
 functions:
   handletelegramstage:

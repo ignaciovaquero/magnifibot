@@ -16,8 +16,9 @@ curl -XPOST 'https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?
 
 ### Required
 
+- Make /start working, so that when a new user joins they receive a welcome or a help message
+- It's a little bit weird that when you're suscribed, the bot doesn't tell you anything except that you're going to receive the Gospel at some point
 - Backup DynamoDB table
-- Add on-demand feature
 - Setup usage CloudWatch alarms for lambda usage
 - Add schedule hours feature
 
