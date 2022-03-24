@@ -20,6 +20,7 @@ curl -XPOST 'https://www.archimadrid.org/index.php/oracion-y-liturgia/index.php?
 - It's a little bit weird that when you're suscribed, the bot doesn't tell you anything except that you're going to receive the Gospel at some point
 - Backup DynamoDB table
 - Setup usage CloudWatch alarms for lambda usage
+- Setup usage CloudWatch alarms for SQS usage
 - Add schedule hours feature
 
 ### Optional
