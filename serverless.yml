@@ -20,9 +20,9 @@ provider:
   environment:
     MAGNIFIBOT_VERBOSE: "true"
     MAGNIFIBOT_SQS_QUEUE_NAME: magnifibot
-    MAGNIFIBOT_SQS_ON_DEMAND_QUEUE_NAME: magnifibot-on-demand
     MAGNIFIBOT_TELEGRAM_BOT_TOKEN: ${ssm:MAGNIFIBOT_TELEGRAM_TOKEN}
     MAGNIFIBOT_DYNAMODB_USER_TABLE: MagnifibotUser
+    MAGNIFIBOT_ON_DEMAND_LAMBDA_FUNCTION_NAME: magnifibot-prod-ondemand
     MAGNIFIBOT_TIMEOUT: 10s
 
   httpApi:
@@ -50,9 +50,14 @@ provider:
             - Fn::Join:
                 - ""
                 - arn:aws:sqs:eu-west-3:106260645150:magnifibot
+        - Effect: "Allow"
+          Action:
+            - "lambda:InvokeFunction"
+            - "lambda:InvokeAsync"
+          Resource:
             - Fn::Join:
                 - ""
-                - arn:aws:sqs:eu-west-3:106260645150:magnifibot-on-demand
+                - arn:aws:lambda:eu-west-3:106260645150:function:magnifibot-prod-ondemand
 
 functions:
   handletelegram:
@@ -83,14 +88,6 @@ functions:
           functionResponseType: ReportBatchItemFailures
   ondemand:
     handler: bin/ondemand
-    events:
-      - sqs:
-          arn:
-            Fn::GetAtt:
-              - OnDemand
-              - Arn
-          batchSize: 10
-          functionResponseType: ReportBatchItemFailures
 
 package:
   patterns:
@@ -116,15 +113,8 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: magnifibot
-        MessageRetentionPeriod: 10800 # 3 hours
+        MessageRetentionPeriod: 1800 # 30 minutes
         ReceiveMessageWaitTimeSeconds: 20
-        VisibilityTimeout: 30 # seconds
-    OnDemand:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: magnifibot-on-demand
-        MessageRetentionPeriod: 300 # 5 minutes
-        ReceiveMessageWaitTimeSeconds: 0
         VisibilityTimeout: 30 # seconds
 
 #    The following are a few example events you can configure

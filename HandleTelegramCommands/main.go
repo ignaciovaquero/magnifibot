@@ -11,8 +11,6 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/igvaquero18/magnifibot/api"
 	"github.com/igvaquero18/magnifibot/controller"
 	"github.com/igvaquero18/magnifibot/utils"
@@ -24,10 +22,11 @@ const (
 	magnifibotNameEnv    = "MAGNIFIBOT_NAME"
 	awsRegionEnv         = "MAGNIFIBOT_AWS_REGION"
 	sqsEndpointEnv       = "MAGNIFIBOT_SQS_ENDPOINT"
-	sqsQueueNameEnv      = "MAGNIFIBOT_SQS_ON_DEMAND_QUEUE_NAME"
 	verboseEnv           = "MAGNIFIBOT_VERBOSE"
 	dynamoDBEndpointEnv  = "MAGNIFIBOT_DYNAMODB_ENDPOINT"
 	dynamoDBUserTableEnv = "MAGNIFIBOT_DYNAMODB_USER_TABLE"
+	lambdaEndpointEnv    = "MAGNIFIBOT_LAMBDA_ENDPOINT"
+	onDemandLambdaEnv    = "MAGNIFIBOT_ON_DEMAND_LAMBDA_FUNCTION_NAME"
 	magnifibotTimeoutEnv = "MAGNIFIBOT_TIMEOUT"
 )
 
@@ -35,10 +34,11 @@ const (
 	magnifibotNameFlag    = "name"
 	awsRegionFlag         = "aws.region"
 	sqsEndpointFlag       = "aws.sqs.endpoint"
-	sqsQueueNameFlag      = "aws.sqs.on_demand_queue_name"
 	verboseFlag           = "logging.verbose"
 	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
 	dynamoDBUserTableFlag = "aws.dynamodb.tables.user"
+	lambdaEndpointFlag    = "aws.lambda.endpoint"
+	onDemandLambdaFlag    = "aws.lambda.on_demand.function_name"
 	magnifibotTimeoutFlag = "timeout"
 )
 
@@ -57,18 +57,20 @@ func init() {
 	viper.SetDefault(magnifibotNameFlag, "magnifibot_bot")
 	viper.SetDefault(awsRegionFlag, "eu-west-3")
 	viper.SetDefault(sqsEndpointFlag, "")
-	viper.SetDefault(sqsQueueNameFlag, controller.DefaultOnDemandQueueName)
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBUserTableFlag, controller.DefaultUserTable)
+	viper.SetDefault(lambdaEndpointFlag, "")
+	viper.SetDefault(onDemandLambdaFlag, "")
 	viper.SetDefault(magnifibotTimeoutFlag, utils.DefaultTimeout)
 	viper.BindEnv(magnifibotNameFlag, magnifibotNameEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(sqsEndpointFlag, sqsEndpointEnv)
-	viper.BindEnv(sqsQueueNameFlag, sqsQueueNameEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBUserTableFlag, dynamoDBUserTableEnv)
+	viper.BindEnv(lambdaEndpointFlag, lambdaEndpointEnv)
+	viper.BindEnv(onDemandLambdaFlag, onDemandLambdaEnv)
 	viper.BindEnv(magnifibotTimeoutFlag, magnifibotTimeoutEnv)
 
 	var err error
@@ -80,28 +82,7 @@ func init() {
 	}
 
 	region := viper.GetString(awsRegionFlag)
-	sqsEndpoint := viper.GetString(sqsEndpointFlag)
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
-
-	sugar.Infow("creating SQS client", "region", region, "url", sqsEndpoint)
-	sqsClient, err := utils.InitSQSClient(region, sqsEndpoint)
-	if err != nil {
-		sugar.Fatalw("error creating SQS client", "error", err.Error())
-	}
-
-	queueURL, err := sqsClient.GetQueueUrl(context.TODO(), &sqs.GetQueueUrlInput{
-		QueueName: aws.String(viper.GetString(sqsQueueNameFlag)),
-	})
-
-	if err != nil {
-		sugar.Fatalw(
-			"error getting the queue URL",
-			"queue_name",
-			viper.GetString(sqsQueueNameFlag),
-			"error",
-			err.Error(),
-		)
-	}
 
 	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
 	dynamoClient, err := utils.InitDynamoClient(region, dynamoDBEndpoint)
@@ -109,12 +90,18 @@ func init() {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
+	lambdaEndpoint := viper.GetString(lambdaEndpointFlag)
+	sugar.Infow("creating lambda client", "region", region, "url", lambdaEndpoint)
+	lambdaClient, err := utils.InitLambdaClient(region, lambdaEndpoint)
+	if err != nil {
+		sugar.Fatalw("error creating Lambda client", "error", err.Error())
+	}
+
 	c = controller.NewMagnifibot(
-		controller.SetSQSClient(sqsClient),
 		controller.SetDynamoDBClient(dynamoClient),
+		controller.SetLambdaClient(lambdaClient),
 		controller.SetConfig(&controller.MagnifibotConfig{
 			UserTable: viper.GetString(dynamoDBUserTableFlag),
-			QueueURL:  *queueURL.QueueUrl,
 		}),
 	)
 }
@@ -238,18 +225,31 @@ func handleCommand(ctx context.Context, regexPattern, body, kind string, chatID,
 		}
 
 		sugar.Infow("on demand operation", "chat_id", chatID)
-		messageID, err := c.SendMessageToQueue(ctx, fmt.Sprintf("%d", chatID), "on_demand")
+		lambdaFunctionName := viper.GetString(onDemandLambdaFlag)
+		statusCode, err := c.Invoke(
+			ctx,
+			lambdaFunctionName,
+			map[string]interface{}{"chat_id": chatID, "action": "on_demand"},
+		)
 		if err != nil {
+			sugar.Errorw(
+				"error invoking lambda function",
+				"function_name",
+				lambdaFunctionName,
+				"error",
+				err.Error(),
+			)
 			return createTelegramResponse(http.StatusOK, chatID, "Lo siento, algo ha fallado")
 		}
+
 		sugar.Debugw(
-			"successfully sent message to queue",
-			"message_id",
-			messageID,
+			"successfully invoked Lambda function",
+			"function_name",
+			lambdaFunctionName,
 			"chat_id",
 			chatID,
-			"queue_name",
-			viper.GetString(sqsQueueNameFlag),
+			"status_code",
+			statusCode,
 		)
 
 		return Response{

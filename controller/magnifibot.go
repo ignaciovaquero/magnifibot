@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/mymmrac/telego"
 )
@@ -21,6 +22,7 @@ type MagnifibotInterface interface {
 	SendMessageToQueue(ctx context.Context, chatID, message string) (string, error)
 	GetConfig() *MagnifibotConfig
 	SendTelegram(ctx context.Context, chatID, message string) (int, error)
+	Invoke(ctx context.Context, functionName string, payload map[string]interface{}) (int32, error)
 }
 
 // DynamoDBInterface is an interface implemented by the dynamodb.Client that allow
@@ -36,7 +38,7 @@ type DynamoDBInterface interface {
 	dynamodb.ScanAPIClient
 }
 
-// SQSSendMessageAPI defines the interface for the GetQueueUrl and SendMessage functions.
+// SQSSendMessageAPI defines the interface for the SendMessage function.
 // We use this interface to test the functions using a mocked service.
 type SQSSendMessageAPI interface {
 	SendMessage(ctx context.Context,
@@ -49,10 +51,21 @@ type TelegramAPI interface {
 	SendMessage(params *telego.SendMessageParams) (*telego.Message, error)
 }
 
+// LambdaInvokeAPI defines the interface for interacting with Lambda
+// functions
+type LambdaInvokeAPI interface {
+	Invoke(
+		ctx context.Context,
+		params *lambda.InvokeInput,
+		optFns ...func(*lambda.Options),
+	) (*lambda.InvokeOutput, error)
+}
+
 // Magnifibot is the controller for the Magnifibot application.
 type Magnifibot struct {
 	DynamoDBInterface
 	SQSSendMessageAPI
+	LambdaInvokeAPI
 	TelegramAPI
 	Config *MagnifibotConfig
 }
@@ -95,6 +108,15 @@ func SetSQSClient(client SQSSendMessageAPI) Option {
 		prev := m.SQSSendMessageAPI
 		m.SQSSendMessageAPI = client
 		return SetSQSClient(prev)
+	}
+}
+
+// SetLambdaClient sets the Lambda client
+func SetLambdaClient(client LambdaInvokeAPI) Option {
+	return func(m *Magnifibot) Option {
+		prev := m.LambdaInvokeAPI
+		m.LambdaInvokeAPI = client
+		return SetLambdaClient(prev)
 	}
 }
 
