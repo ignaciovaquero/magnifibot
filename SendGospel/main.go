@@ -178,6 +178,26 @@ func Handler(ctx context.Context, event Event) error {
 				messageID,
 			)
 
+			// Send Psalm
+			messageID, err = c.SendTelegram(
+				ctx,
+				chatID,
+				fmt.Sprintf("*%s\n%s*\n\n%s", psalmReference, psalmTitle, psalmBody),
+			)
+			if err != nil {
+				e <- fmt.Errorf("error sending psalm as Telegram message: %w", err)
+				return
+			}
+			sugar.Debugw(
+				"successfully sent psalm as Telegram message",
+				"psalm_reference",
+				psalmTitle,
+				"chat_id",
+				chatID,
+				"message_id",
+				messageID,
+			)
+
 			// Send Second Lecture if exists
 			if magnificat.SecondLecture != nil {
 				secondLectureReference := string(
@@ -206,24 +226,12 @@ func Handler(ctx context.Context, event Event) error {
 				)
 			}
 
-			// Send Psalm
-			messageID, err = c.SendTelegram(ctx, chatID, fmt.Sprintf("*%s\n%s*\n\n%s", psalmReference, psalmTitle, psalmBody))
-			if err != nil {
-				e <- fmt.Errorf("error sending psalm as Telegram message: %w", err)
-				return
-			}
-			sugar.Debugw(
-				"successfully sent psalm as Telegram message",
-				"psalm_reference",
-				psalmTitle,
-				"chat_id",
-				chatID,
-				"message_id",
-				messageID,
-			)
-
 			// Send Gospel
-			messageID, err = c.SendTelegram(ctx, chatID, fmt.Sprintf("*%s\n%s*\n\n%s", gospelReference, gospelTitle, gospelBody))
+			messageID, err = c.SendTelegram(
+				ctx,
+				chatID,
+				fmt.Sprintf("*%s\n%s*\n\n%s", gospelReference, gospelTitle, gospelBody),
+			)
 			if err != nil {
 				e <- fmt.Errorf("error sending gospel as Telegram message: %w", err)
 				return
