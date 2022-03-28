@@ -136,6 +136,25 @@ func Handler(ctx context.Context, event Event) error {
 		messageID,
 	)
 
+	// Send Psalm
+	messageID, err = c.SendTelegram(
+		ctx,
+		event.ChatID,
+		fmt.Sprintf("*%s\n%s*\n\n%s", psalmReference, psalmTitle, psalmBody),
+	)
+	if err != nil {
+		return fmt.Errorf("error sending psalm as Telegram message: %w", err)
+	}
+	sugar.Debugw(
+		"successfully sent psalm as Telegram message",
+		"psalm_reference",
+		psalmTitle,
+		"chat_id",
+		event.ChatID,
+		"message_id",
+		messageID,
+	)
+
 	// Send Second Lecture if exists
 	if len(secondLecture.Content) > 0 {
 		secondLectureReference := string(
@@ -162,25 +181,6 @@ func Handler(ctx context.Context, event Event) error {
 			messageID,
 		)
 	}
-
-	// Send Psalm
-	messageID, err = c.SendTelegram(
-		ctx,
-		event.ChatID,
-		fmt.Sprintf("*%s\n%s*\n\n%s", psalmReference, psalmTitle, psalmBody),
-	)
-	if err != nil {
-		return fmt.Errorf("error sending psalm as Telegram message: %w", err)
-	}
-	sugar.Debugw(
-		"successfully sent psalm as Telegram message",
-		"psalm_reference",
-		psalmTitle,
-		"chat_id",
-		event.ChatID,
-		"message_id",
-		messageID,
-	)
 
 	// Send Gospel
 	messageID, err = c.SendTelegram(

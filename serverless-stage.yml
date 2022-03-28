@@ -49,6 +49,14 @@ provider:
             - Fn::Join:
                 - ""
                 - arn:aws:sqs:eu-west-3:106260645150:magnifibot-stage
+        - Effect: "Allow"
+          Action:
+            - "lambda:InvokeFunction"
+            - "lambda:InvokeAsync"
+          Resource:
+            - Fn::Join:
+                - ""
+                - arn:aws:lambda:eu-west-3:106260645150:function:magnifibot-stage-ondemandstage
 
 functions:
   handletelegramstage:
