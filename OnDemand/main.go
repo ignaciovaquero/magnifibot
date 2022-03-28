@@ -35,7 +35,7 @@ var (
 )
 
 type Event struct {
-	ChatID string `json:"chat_id"`
+	ChatID int64  `json:"chat_id"`
 	Action string `json:"action,omitempty"`
 }
 
@@ -103,7 +103,7 @@ func Handler(ctx context.Context, event Event) error {
 	gospelBody := string(re.ReplaceAll([]byte(gospel.Content), []byte(`\$1`)))
 
 	// Send day
-	messageID, err := c.SendTelegram(ctx, event.ChatID, fmt.Sprintf("*%s*", day))
+	messageID, err := c.SendTelegram(ctx, fmt.Sprintf("%d", event.ChatID), fmt.Sprintf("*%s*", day))
 	if err != nil {
 		return fmt.Errorf("error sending day %s as Telegram message: %w", day, err)
 	}
@@ -120,7 +120,7 @@ func Handler(ctx context.Context, event Event) error {
 	// Send First Lecture
 	messageID, err = c.SendTelegram(
 		ctx,
-		event.ChatID,
+		fmt.Sprintf("%d", event.ChatID),
 		fmt.Sprintf("*%s\n%s*\n\n%s", firstLectureReference, firstLectureTitle, firstLectureBody),
 	)
 	if err != nil {
@@ -139,7 +139,7 @@ func Handler(ctx context.Context, event Event) error {
 	// Send Psalm
 	messageID, err = c.SendTelegram(
 		ctx,
-		event.ChatID,
+		fmt.Sprintf("%d", event.ChatID),
 		fmt.Sprintf("*%s\n%s*\n\n%s", psalmReference, psalmTitle, psalmBody),
 	)
 	if err != nil {
@@ -165,7 +165,7 @@ func Handler(ctx context.Context, event Event) error {
 
 		messageID, err = c.SendTelegram(
 			ctx,
-			event.ChatID,
+			fmt.Sprintf("%d", event.ChatID),
 			fmt.Sprintf("*%s\n%s*\n\n%s", secondLectureReference, secondLectureTitle, secondLectureBody),
 		)
 		if err != nil {
@@ -185,7 +185,7 @@ func Handler(ctx context.Context, event Event) error {
 	// Send Gospel
 	messageID, err = c.SendTelegram(
 		ctx,
-		event.ChatID,
+		fmt.Sprintf("%d", event.ChatID),
 		fmt.Sprintf("*%s\n%s*\n\n%s", gospelReference, gospelTitle, gospelBody),
 	)
 	if err != nil {
